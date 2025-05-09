@@ -15,7 +15,7 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 > ⚠️ **If you have many log files (e.g., over 2000), process them in batches:**
 > - Copy a portion of the logs.
 > - Open `main.html` and update the database.
-> - Replace with the next batch and repeat the process.
+> - Add the next batch and repeat the process.
 > - Do this until all logs are imported into the DB.
 
 ---
@@ -31,7 +31,7 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 ### 3. Generate and View Plots
 
 - Choose the desired plot type.
-- Enter the required parameters.
+- Change the required parameters.
 - Visualize and explore your data!
 
 ---
@@ -39,5 +39,4 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 ## 💡 Contribute
 
 Want to add new plots or features?  
-Contribute on GitHub:  
-🔗 [https://github.com/73-de-LZ/ARX-Heatmaps](https://github.com/73-de-LZ/ARX-Heatmaps)
+Contributons or suggestions are welcome!
