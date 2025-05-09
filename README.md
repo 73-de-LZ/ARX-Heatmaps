@@ -40,3 +40,29 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 
 Want to add new plots or features?  
 Contributons or suggestions are welcome!
+
+# Example output
+
+## SNR-ALT_AZ Plots
+<div style="display: flex; flex-wrap: wrap;">
+    <img src="/Example_plots/SNR-ALT_AZ (1).png" alt="SNR-ALT_AZ 1" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_AZ (2).png" alt="SNR-ALT_AZ 2" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_AZ (3).png" alt="SNR-ALT_AZ 3" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_AZ (4).png" alt="SNR-ALT_AZ 4" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_AZ (5).png" alt="SNR-ALT_AZ 5" width="200" style="margin: 10px;">
+</div>
+
+## SNR-ALT_DIST Plots
+<div style="display: flex; flex-wrap: wrap;">
+    <img src="/Example_plots/SNR-ALT_DIST (1).png" alt="SNR-ALT_DIST 1" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_DIST (2).png" alt="SNR-ALT_DIST 2" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_DIST (3).png" alt="SNR-ALT_DIST 3" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_DIST (4).png" alt="SNR-ALT_DIST 4" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_DIST (5).png" alt="SNR-ALT_DIST 5" width="200" style="margin: 10px;">
+    <img src="/Example_plots/SNR-ALT_DIST (6).png" alt="SNR-ALT_DIST 6" width="200" style="margin: 10px;">
+</div>
+
+## SNR-EL_AZ Plot
+<div style="display: flex; justify-content: center; margin-top: 20px;">
+    <img src="/Example_plots/SNR-EL_AZ.png" alt="SNR-EL_AZ" width="400" style="margin: 10px;">
+</div>
