@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.2.20 -->
+<!-- Ver.2.21 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -104,7 +104,7 @@
     }
 
     input[type="number"] {
-        width: 80px;
+        width: 50px;
     }
 
     input[type="color"] {
@@ -264,30 +264,42 @@
     </div>
 
     <!-- Second Row - Range Controls -->
-    <div class="controls-row">
-        <!-- Altitude Range -->
-        <div class="range-control">
-            <div class="form-row">
-                <label class="range-label">Altitude (km):</label>
-                <div class="range-inputs">
-                    <input type="number" id="yMin" placeholder="Min" value="0" step="0.5">
-                    <span>to</span>
-                    <input type="number" id="yMax" placeholder="Max" value="40" step="1">
-                </div>
-            </div>
-        </div>
+	<div class="controls-row">
+		<!-- Altitude Range -->
+		<div class="range-control">
+			<div class="form-row">
+				<label class="range-label">Altitude (km):</label>
+				<div class="range-inputs">
+					<input type="number" id="yMin" placeholder="Min" value="0" step="0.5">
+					<span>to</span>
+					<input type="number" id="yMax" placeholder="Max" value="40" step="1">
+				</div>
+			</div>
+		</div>
 
-        <!-- Distance Range -->
-<div class="range-control">
-    <div class="form-row">
-        <label class="range-label">Azimuth (deg):</label>
-        <div class="range-inputs">
-            <input type="number" id="xMin" placeholder="Min" value="0" step="10">
-            <span>to</span>
-            <input type="number" id="xMax" placeholder="Max" value="360" step="10">
-        </div>
-    </div>
-</div>
+		<!-- AZ Range -->
+		<div class="range-control">
+			<div class="form-row">
+				<label class="range-label">Azimuth (deg):</label>
+				<div class="range-inputs">
+					<input type="number" id="xMin" placeholder="Min" value="0" step="10">
+					<span>to</span>
+					<input type="number" id="xMax" placeholder="Max" value="360" step="10">
+				</div>
+			</div>
+		</div>
+
+        <!-- SNR Range -->
+		<div class="range-control">
+			<div class="form-row">
+				<label class="range-label">SNR (dB):</label>
+				<div class="range-inputs">
+					<input type="number" id="snrMin" placeholder="Min" value="8" step="1">
+					<span>to</span>
+					<input type="number" id="snrMax" placeholder="Max" value="28" step="1">
+				</div>
+			</div>
+		</div>
     </div>
 
     <!-- Third Row - LOS Controls -->
@@ -295,12 +307,12 @@
         <!-- Column 1 - Observer Settings -->
         <div class="range-control">
             <div class="form-row">
-                <label for="observerHeight" class="range-label">RX Antenna ASL (m):</label>
-                <input type="number" id="observerHeight" value="100" min="0" step="10">
+                <label for="observerHeight" class="range-label" style="color: #444;">RX Antenna ASL (m):</label>
+                <input type="number" id="observerHeight" value="100" min="0" step="10" disabled>
             </div>
             <div class="form-row">
-                <label for="refractionFactor" class="range-label">Refraction Factor:</label>
-                <input type="number" id="refractionFactor" value="1.33" min="1" max="2" step="0.01">
+                <label for="refractionFactor" class="range-label" style="color: #444;">Refraction Factor:</label>
+                <input type="number" id="refractionFactor" value="1.33" min="1" max="2" step="0.01" disabled>
             </div>
         </div>
 
@@ -353,8 +365,8 @@
 
     <script>
         // Configuration
-        const MAX_SNR = 28;        // Normalization range for colors
-        const MIN_SNR = 8;
+        let MAX_SNR = 28;        // Normalization range for colors
+        let MIN_SNR = 8;
         const BATCH_SIZE = 20000;  // Increased batch size for large datasets
         const MAX_POINTS = 50000000; // Maximum points to render (50 million)
         const METERS_TO_KM = 0.001;
@@ -436,6 +448,8 @@
         const xMaxInput = document.getElementById('xMax');
         const yMinInput = document.getElementById('yMin');
         const yMaxInput = document.getElementById('yMax');
+        const snrMinInput = document.getElementById('snrMin');
+        const snrMaxInput = document.getElementById('snrMax');
         const losEnabled = document.getElementById('losEnabled');
         const radioHorizonEnabled = document.getElementById('radioHorizonEnabled');
         const observerHeightInput = document.getElementById('observerHeight');
@@ -447,6 +461,15 @@
         // Resolution change handler
         resolutionSelect.addEventListener('change', function() {
             customResGroup.style.display = this.value === 'custom' ? 'flex' : 'none';
+        });
+
+        // SNR range change handler
+        snrMinInput.addEventListener('change', function() {
+            MIN_SNR = parseFloat(this.value) || 8;
+        });
+        
+        snrMaxInput.addEventListener('change', function() {
+            MAX_SNR = parseFloat(this.value) || 28;
         });
 
         // Set initial canvas dimensions
@@ -664,7 +687,11 @@ async function generatePlot() {
         const yMin = (parseFloat(yMinInput.value) || 0) * 1000; // Convert km to meters
         const yMax = (parseFloat(yMaxInput.value) || 35) * 1000; // Convert km to meters
         
-        if (xMin >= xMax || yMin >= yMax) {
+        // Update SNR min/max from inputs
+        MIN_SNR = parseFloat(snrMinInput.value) || 8;
+        MAX_SNR = parseFloat(snrMaxInput.value) || 28;
+
+        if (xMin >= xMax || yMin >= yMax || MIN_SNR >= MAX_SNR) {
             statusDiv.textContent = "Error: Max values must be greater than min values";
             return;
         }
@@ -740,7 +767,7 @@ async function generatePlot() {
     }
 }
 
-// New function to draw axes and grid
+// draw axes and grid
         function drawAxesAndGrid(ctx, xMin, xMax, yMin, yMax, width, height) {
             // Convert yMin and yMax from meters to kilometers for display
             const yMinKm = yMin * METERS_TO_KM;
