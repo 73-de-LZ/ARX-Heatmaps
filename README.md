@@ -25,6 +25,7 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 
 - Copy the log files from your `RadiosondeAutoRX` folder into a local folder.
 - Include a copy of the `station.cfg` file in the same folder.
+- Copy all .html files from this repository to a different local folder on your PC.
 
 > ⚠️ **If you have many log files (e.g., over 2000), process them in batches:**
 > - Copy a portion of the logs.
