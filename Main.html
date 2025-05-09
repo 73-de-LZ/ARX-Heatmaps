@@ -115,15 +115,19 @@
             background-color: #018786;
         }
 		
-		#elDistBtn {
+		#AltDistBtn {
+            background-color: #6da6e8;
+            color: black;
+		}
+		#AltAzBtn {
+            background-color: #6da6e8;
+            color: black;
+		}
+		#ElAzBtn {
             background-color: #6da6e8;
             color: black;
 		}
 
-		#elAzBtn {
-            background-color: #6da6e8;
-            color: black;
-		}        
         input, select {
             padding: 8px;
             border-radius: 4px;
@@ -225,8 +229,9 @@
             <option value="">All Serials</option>
         </select>
         <input type="number" id="limitInput" placeholder="Limit results" value="100" min="1">
-		<button id="elDistBtn" disabled>SNR vs ALT-DIST</button>
-		<button id="elAzBtn" disabled>SNR vs ALT-AZ</button>
+		<button id="AltDistBtn" disabled>SNR vs ALT-DIST</button>
+		<button id="AltAzBtn" disabled>SNR vs ALT-AZ</button>
+		<button id="ElAzBtn" disabled>SNR vs EL-AZ</button>
 	</div>
     
     <div class="progress-container" id="progressContainer" style="display: none;">
@@ -925,11 +930,14 @@ queryBtn.addEventListener('click', async () => {
         queryBtn.disabled = false;
     }
 });
-elDistBtn.addEventListener('click', () => {
+AltDistBtn.addEventListener('click', () => {
     window.open('SNR-alt_dist.html', '_blank');
 });
-elAzBtn.addEventListener('click', () => {
+AltAzBtn.addEventListener('click', () => {
     window.open('SNR-alt_az.html', '_blank');
+});
+ElAzBtn.addEventListener('click', () => {
+    window.open('SNR-el_az.html', '_blank');
 });
         
         // Process directory using File System Access API
@@ -1149,8 +1157,9 @@ async function processFiles(files, clearFirst) {
 				await initDB();
 				clearDbBtn.disabled = false;
 				queryBtn.disabled = true;
-				elDistBtn.disabled = false;  // Enable plot button immediately
-				elAzBtn.disabled = false;
+				AltDistBtn.disabled = false;  // Enable plot button immediately
+				AltAzBtn.disabled = false;
+				ElAzBtn.disabled = false;
 				serialSelect.disabled = false;
 				updateDbBtn.disabled = false;
 			} catch (e) {
