@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<!-- Ver.2.20 -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNR vs Elevation and Azimuth</title>
+<style>
+    /* ===== BASE STYLES ===== */
+    body {
+        margin: 0;
+        padding: 20px;
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+
+    /* ===== MAIN CONTROLS CONTAINER ===== */
+    #controls {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 1000px;
+        margin: 20px auto;
+		align-items: center;
+    }
+
+    /* ===== CONTROL ROWS ===== */
+    .controls-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        width: 100%;
+		justify-content: center;
+    }
+
+    /* ===== CONTROL GROUPS ===== */
+    .control-group {
+        background-color: #1e1e1e;
+        border-radius: 6px;
+        padding: 12px;
+
+    }
+
+    .control-group-flex {
+        display: flex;
+        align-items: center;
+    }
+
+    .control-label {
+        margin-right: 10px;
+    }
+
+	.input-hint {
+        color: #aaa;
+        font-size: 0.8em;
+        margin-left: 10px;
+        font-style: italic;
+    }
+
+    /* ===== RANGE CONTROLS ===== */
+    .range-control {
+        background-color: #1e1e1e;
+        border-radius: 6px;
+        padding: 12px;
+    }
+
+    .range-inputs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .range-label {
+        margin-right: 10px;
+        text-align: right;
+    }
+
+    /* ===== 3-COLUMN LAYOUT ===== */
+    .los-controls-grid {
+        display: grid;
+        grid-template-columns: auto auto auto;
+		justify-content: start;
+        gap: 12px;
+    }
+
+    /* ===== FORM ROWS ===== */
+    .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+		height: 22px;
+		justify-content: space-between;
+    }
+
+    /* ===== INPUT ELEMENTS ===== */
+    input, select {
+        padding: 4px 8px;
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+        border: 1px solid #333;
+        border-radius: 4px;
+    }
+
+    input[type="number"] {
+        width: 60px;
+    }
+
+    input[type="color"] {
+        width: 40px;
+        height: 20px;
+        padding: 1px;
+    }
+
+    /* ===== BUTTONS ===== */
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        width: 100%;
+        margin-top: 10px;
+		justify-content: center;
+    }
+
+    button, .download-btn, .view-btn {
+        padding: 10px 20px;
+        background-color: #6da6e8;
+        color: #000;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+	.view-btn {
+		background-color: #03dac6;
+        display: none;
+        text-decoration: none;		
+	}
+    .download-btn {
+        background-color: #00dac6;
+        display: none;
+        text-decoration: none;
+    }
+
+	#progress {
+		width: 100%;
+		background-color: #333;
+		border-radius: 4px;
+		margin: 20px 0;
+		display: none;
+	}
+	#progressBar {
+		height: 20px;
+		background-color: #6da6e8;
+		border-radius: 4px;
+		width: 0%;
+		transition: width 0.3s;
+	}
+
+	#status {
+		margin: 20px 0;
+		padding: 10px;
+		border-radius: 4px;
+		background-color: #1e1e1e;
+	}
+	
+	.modal {
+		display: none;
+		position: fixed;
+		z-index: 1000;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		overflow: auto; /* Ensures scrolling if image is too big */
+		background-color: rgba(0,0,0,0.9);
+		touch-action: manipulation; /* Improves mobile behavior */
+	}
+
+	.modal-content {
+		display: block;
+		max-width: 95vw; /* Limits width to viewport */
+		max-height: 95vh; /* Limits height to viewport */
+		margin: auto;
+		position: relative;
+		top: 50%;
+		transform: translateY(-50%);
+		object-fit: contain; /* Prevents distortion */
+	}
+
+	.close {
+		position: fixed; /* Stays visible even when scrolling */
+		top: 20px;
+		right: 30px;
+		color: #f1f1f1;
+		font-size: 40px;
+		font-weight: bold;
+		cursor: pointer;
+		z-index: 1001; /* Above the image */
+	}
+	
+    /* ===== RESPONSIVE ADJUSTMENTS ===== */
+    @media (max-width: 768px) {
+        .los-controls-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .range-label, .control-label {
+            min-width: 120px;
+        }
+        
+        .controls-row {
+            flex-direction: column;
+        }
+    }
+</style>
+</head>
+<body>
+    <h2>Receiver SNR vs Radiosonde Elevation and Azimuth</h2>
+<div id="controls">
+    <!-- First Row - Top Controls -->
+    <div class="controls-row">
+        <!-- Resolution -->
+        <div class="control-group control-group-flex">
+            <label for="resolution" class="control-label">Resolution:</label>
+            <select id="resolution">
+                <option value="1280x720">HD (1280×720)</option>
+                <option value="1366x768">WXGA (1366×768)</option>
+                <option value="1920x1080" selected>Full HD (1920×1080)</option>
+                <option value="2560x1440">QHD (2560×1440)</option>
+                <option value="3840x2160">4K (3840×2160)</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <!-- Detail Level -->
+        <div class="control-group control-group-flex">
+            <label for="quality" class="control-label">Detail Level:</label>
+            <select id="quality">
+                <option value="1">Maximum (1:1)</option>
+                <option value="2" selected>High (1:2)</option>
+                <option value="5">Medium (1:5)</option>
+                <option value="10">Low (1:10)</option>
+				<option value="20">Minimum (1:20)</option>
+                <option value="auto">Auto</option>
+				<option value="100">DEV test</option>
+            </select>
+			<!-- <span class="input-hint">Use "Auto" for DB with 2M+ records</span> -->
+        </div>
+		<div class="control-group control-group-flex">
+			<label for="colorScheme" class="control-label">Color Scheme:</label>
+			<select id="colorScheme">
+				<option value="jet">Jet</option>
+				<option value="viridis" selected>Viridis</option>
+				<option value="plasma">Plasma</option>
+				<option value="magma">Magma</option>
+				<option value="inferno">Inferno</option>
+				<option value="thermal">Thermal</option>
+				<option value="rainbow">Rainbow</option>
+				<option value="grayscale">Grayscale</option>
+			</select>
+        </div>		
+    </div>
+
+    <!-- Second Row - Range Controls -->
+	<div class="controls-row">
+		<!-- EL Range -->
+		<div class="range-control">
+			<div class="form-row">
+				<label class="range-label">Elevation (deg):</label>
+				<div class="range-inputs">
+					<input type="number" id="yMin" placeholder="Min" value="0" step="1">
+					<span>to</span>
+					<input type="number" id="yMax" placeholder="Max" value="30" step="5">
+				</div>
+			</div>
+		</div>
+
+		<!-- AZ Range -->
+		<div class="range-control">
+			<div class="form-row">
+				<label class="range-label">Azimuth (deg):</label>
+				<div class="range-inputs">
+					<input type="number" id="xMin" placeholder="Min" value="0" step="10">
+					<span>to</span>
+					<input type="number" id="xMax" placeholder="Max" value="360" step="10">
+				</div>
+			</div>
+		</div>
+    </div>
+
+    <!-- Third Row - LOS Controls -->
+    <div id="losControls" class="los-controls-grid">
+        <!-- Column 1 - Observer Settings -->
+        <div class="range-control">
+            <div class="form-row">
+                <label for="observerHeight" class="range-label" style="color: #444;">RX Antenna ASL (m):</label>
+                <input type="number" id="observerHeight" value="100" min="0" step="10" disabled>
+            </div>
+            <div class="form-row">
+                <label for="refractionFactor" class="range-label" style="color: #444;">Refraction Factor:</label>
+                <input type="number" id="refractionFactor" value="1.33" min="1" max="2" step="0.01" disabled>
+            </div>
+        </div>
+
+        <!-- Column 2 - Toggles -->
+        <div class="range-control">
+            <div class="form-row">
+                <label for="losEnabled" class="range-label" style="color: #444;">Show Line of Sight:</label>
+                <input type="checkbox" id="losEnabled" disabled>
+            </div>
+            <div class="form-row">
+                <label for="radioHorizonEnabled" class="range-label" style="color: #444;">Show Radio Horizon:</label>
+                <input type="checkbox" id="radioHorizonEnabled" disabled>
+            </div>
+        </div>
+
+        <!-- Column 3 - Colors -->
+        <div class="range-control">
+            <div class="form-row">
+                <label for="losColor" class="range-label" style="color: #444;">LOS Color:</label>
+                <input type="color" id="losColor" value="#44FF00" disabled>
+            </div>
+            <div class="form-row">
+                <label for="radioHorizonColor" class="range-label" style="color: #444;">Radio Horizon:</label>
+                <input type="color" id="radioHorizonColor" value="#FBFF22" disabled>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button id="generateBtn">Generate Plot</button>
+        
+    </div>
+</div>
+
+    <div id="status">Ready to generate plot...</div>
+        <canvas id="plotCanvas" style="display: none;"></canvas>
+    </div>
+    <div id="progress">
+        <div id="progressBar"></div>
+    </div>
+	<div class="action-buttons">
+		<button id="viewBtn" class="action-btn view-btn" style="display: none;">View Plot</button>
+		<a id="downloadBtn" class="action-btn download-btn" download="SNR-EL_AZ.png" style="display: none;">Download PNG</a>
+	</div>
+	<div id="imageModal" class="modal">
+		<span class="close">&times;</span>
+		<img class="modal-content" id="modalImage">
+	</div>
+
+    <script>
+        // Configuration
+        const MAX_SNR = 28;        // Normalization range for colors
+        const MIN_SNR = 8;
+        const BATCH_SIZE = 20000;  // Increased batch size for large datasets
+        const MAX_POINTS = 50000000; // Maximum points to render (50 million)
+        const METERS_TO_KM = 0.001;
+		
+		const COLOR_SCHEMES = {
+			jet: [
+				[0.0, 0, 0, 128],
+				[0.125, 0, 0, 255],
+				[0.375, 0, 255, 255],
+				[0.625, 255, 255, 0],
+				[0.875, 255, 0, 0],
+				[1.0, 128, 0, 0]
+			],
+			viridis: [
+				[0.0, 68, 1, 84],
+				[0.25, 59, 82, 139],
+				[0.5, 33, 145, 140],
+				[0.75, 94, 201, 98],
+				[1.0, 253, 231, 37]
+			],
+			plasma: [
+				[0.0, 13, 8, 135],
+				[0.25, 75, 3, 161],
+				[0.5, 138, 15, 134],
+				[0.75, 191, 57, 85],
+				[1.0, 240, 249, 33]
+			],
+			magma: [
+				[0.0, 0, 0, 4],
+				[0.25, 48, 18, 59],
+				[0.5, 120, 28, 129],
+				[0.75, 189, 55, 84],
+				[1.0, 252, 141, 89]
+			],
+			inferno: [
+				[0.0, 0, 0, 4],
+				[0.25, 57, 9, 99],
+				[0.5, 134, 21, 102],
+				[0.75, 203, 54, 47],
+				[1.0, 252, 125, 10]
+			],
+			thermal: [
+				[0.0, 0, 0, 0],
+				[0.5, 255, 0, 0],
+				[1.0, 255, 255, 0]
+			],
+			rainbow: [
+				[0.0, 255, 0, 0],
+				[0.2, 255, 255, 0],
+				[0.4, 0, 255, 0],
+				[0.6, 0, 255, 255],
+				[0.8, 0, 0, 255],
+				[1.0, 255, 0, 255]
+			],
+			grayscale: [
+				[0.0, 0, 0, 0],
+				[1.0, 255, 255, 255]
+			]
+		};
+		
+        // DOM elements
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+		const viewBtn = document.getElementById('viewBtn');
+		const modal = document.getElementById('imageModal');
+		const modalImg = document.getElementById('modalImage');
+		const span = document.querySelector('.close');
+        const statusDiv = document.getElementById('status');
+        const progressDiv = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const canvas = document.getElementById('plotCanvas');
+        const ctx = canvas.getContext('2d');
+        const resolutionSelect = document.getElementById('resolution');
+        const customResGroup = document.getElementById('customResGroup');
+        const customWidth = document.getElementById('customWidth');
+        const customHeight = document.getElementById('customHeight');
+        const qualitySelect = document.getElementById('quality');
+        const xMinInput = document.getElementById('xMin');
+        const xMaxInput = document.getElementById('xMax');
+        const yMinInput = document.getElementById('yMin');
+        const yMaxInput = document.getElementById('yMax');
+        const losEnabled = document.getElementById('losEnabled');
+        const radioHorizonEnabled = document.getElementById('radioHorizonEnabled');
+        const observerHeightInput = document.getElementById('observerHeight');
+        const earthRadiusInput = 6371;
+        const refractionFactorInput = document.getElementById('refractionFactor');
+        const losColorInput = document.getElementById('losColor');
+        const radioHorizonColorInput = document.getElementById('radioHorizonColor');
+        
+        // Resolution change handler
+        resolutionSelect.addEventListener('change', function() {
+            customResGroup.style.display = this.value === 'custom' ? 'flex' : 'none';
+        });
+
+        // Set initial canvas dimensions
+        function setCanvasSize(width, height) {
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        // Get current resolution
+        function getResolution() {
+            if (resolutionSelect.value === 'custom') {
+                return {
+                    width: parseInt(customWidth.value) || 1920,
+                    height: parseInt(customHeight.value) || 1080
+                };
+            } else {
+                const [width, height] = resolutionSelect.value.split('x').map(Number);
+                return { width, height };
+            }
+        }
+
+        // Calculate optimal sampling rate based on record count
+        function calculateSamplingRate(recordCount, qualitySetting) {
+            if (qualitySetting === 'auto') {
+                // Auto-adjust based on record count and resolution
+                const res = getResolution();
+                const pixelsAvailable = res.width * res.height;
+                return Math.max(1, Math.floor(recordCount / pixelsAvailable) * 2);
+            }
+            return parseInt(qualitySetting) || 1;
+        }
+
+// universal color mapping function
+function getColorForSNR(snr) {
+    // Normalize SNR value between MIN_SNR and MAX_SNR to 0-1 range
+    const normalized = Math.min(1, Math.max(0, (snr - MIN_SNR) / (MAX_SNR - MIN_SNR)));
+    
+    // Get selected color scheme
+    const scheme = document.getElementById('colorScheme').value;
+    const stops = COLOR_SCHEMES[scheme];
+    
+    // Find the two stops the normalized value falls between
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+    
+    for (let i = 0; i < stops.length; i++) {
+        if (stops[i][0] >= normalized) {
+            upper = stops[i];
+            lower = i > 0 ? stops[i-1] : upper;
+            break;
+        }
+    }
+    
+    // If exactly on a stop point, return that color
+    if (lower[0] === upper[0]) {
+        return [lower[1], lower[2], lower[3]];
+    }
+    
+    // Calculate interpolation factor between the two stops
+    const t = (normalized - lower[0]) / (upper[0] - lower[0]);
+    
+    // Linearly interpolate between the two colors
+    return [
+        Math.round(lower[1] + t * (upper[1] - lower[1])),  // R
+        Math.round(lower[2] + t * (upper[2] - lower[2])),  // G
+        Math.round(lower[3] + t * (upper[3] - lower[3]))   // B
+    ];
+}
+
+        
+        // Calculate line of sight distance for a given altitude
+        function calculateLineOfSight(altitude, observerHeight, earthRadius, refractionFactor = 1) {
+            // Apply refraction factor to effective Earth radius
+            const effectiveRadius = earthRadius * refractionFactor;
+            // Convert to meters
+            const R = effectiveRadius * 1000;
+            
+            // Calculate distance to horizon for observer
+            const d1 = Math.sqrt(2 * R * observerHeight + observerHeight * observerHeight);
+            // Calculate distance to horizon for target altitude
+            const d2 = Math.sqrt(2 * R * altitude + altitude * altitude);
+            // Total line of sight distance
+            return d1 + d2;
+        }
+        
+        // Draw horizon curve (either LOS or radio horizon)
+        function drawHorizonCurve(ctx, xMin, xMax, yMin, yMax, plotArea, 
+                               observerHeight, earthRadius, color, label, refractionFactor = 1) {
+            const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            
+            // Calculate points along the curve
+            const steps = 100;
+            const stepSize = (xMax - xMin) / steps;
+            
+            for (let i = 0; i <= steps; i++) {
+                const distance = xMin + i * stepSize;
+                // Convert distance to meters for calculation
+                const distanceMeters = distance * 1000;
+                
+                // Solve for altitude that would be just visible at this distance
+                const R = earthRadius * 1000 * refractionFactor;
+                const d1 = Math.sqrt(2 * R * observerHeight + observerHeight * observerHeight);
+                let altitude = 0;
+                
+                if (distanceMeters > d1) {
+                    const remainingDistance = distanceMeters - d1;
+                    altitude = (Math.pow(remainingDistance, 2) - 2 * R * observerHeight) / (2 * R);
+                    altitude = Math.max(0, altitude);
+                }
+                
+                // Convert to canvas coordinates within plot area
+                const x = plotX + ((distance - xMin) / (xMax - xMin)) * plotWidth;
+                const y = xAxisY - ((altitude - yMin) / (yMax - yMin)) * plotHeight;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            
+            // Add label at the end of the curve - now showing km values
+            const defSondeHeight = 35000;
+            const defSondeHeightKm = defSondeHeight * METERS_TO_KM;
+            const defDistance = calculateLineOfSight(defSondeHeight, observerHeight, earthRadius, refractionFactor) / 1000;
+            const maxDistance = calculateLineOfSight(yMax, observerHeight, earthRadius, refractionFactor) / 1000;
+            const labelX = plotX + plotWidth * 0.98; // H position of labels
+            const labelY = xAxisY - (label === 'LOS' ? 120 : 80); // V position
+            
+            ctx.fillStyle = color;
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Typical ${label} ${observerHeight}m to ${defSondeHeightKm.toFixed(1)}km: ~${defDistance.toFixed(1)} km`, labelX, labelY);
+            ctx.fillText(`${label} from ${observerHeight}m to ${(yMax * METERS_TO_KM).toFixed(1)}km: ~${maxDistance.toFixed(1)} km`, labelX, labelY-20);
+        }
+        
+        // Draw color bar legend
+        function drawColorBarLegend(ctx, plotArea) {
+            const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
+            
+            // Dimensions for the color bar
+            const barHeight = 20;
+            const barWidth = 360; // plotWidth * 0.3 for 30% of plot width
+            const barX = plotX + 22 + (plotWidth - 60 - barWidth) * 0.5; // H pos
+            const barY = 44; // V Position
+            
+            // Draw the color gradient
+            for (let i = 0; i < barWidth; i++) {
+                const normalized = i / barWidth;
+                const snr = MIN_SNR + normalized * (MAX_SNR - MIN_SNR);
+                const [r, g, b] = getColorForSNR(snr);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(barX + i, barY, 1, barHeight);
+            }
+            
+            // Draw border around color bar
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+            
+            // Add title
+            ctx.fillStyle = '#aaa';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('SNR (dB)', barX + barWidth / 2, barY - 8);
+            
+            // Add tick marks and labels
+            const tickCount = 7; // Number of ticks including min and max
+            ctx.font = '12px Arial';
+            
+            for (let i = 0; i < tickCount; i++) {
+                const snr = MIN_SNR + (i / (tickCount - 1)) * (MAX_SNR - MIN_SNR);
+                const x = barX + (i / (tickCount - 1)) * barWidth;
+                
+                // Tick mark
+                ctx.beginPath();
+                ctx.moveTo(x, barY + barHeight);
+                ctx.lineTo(x, barY + barHeight + 5);
+                ctx.stroke();
+                
+                // Label
+                ctx.fillText(snr.toFixed(0), x, barY + barHeight + 20);
+            }
+        }
+        
+        // Process data and render to canvas
+async function generatePlot() {
+    try {
+        generateBtn.disabled = true;
+        progressDiv.style.display = 'block';
+        
+        // Set canvas size based on selection
+        const res = getResolution();
+        setCanvasSize(res.width, res.height);
+        
+        statusDiv.textContent = `Initializing ${res.width}×${res.height} plot...`;
+        
+        const db = await openDatabase();
+        const totalCount = await getRecordCount(db);
+        
+        if (totalCount === 0) {
+            statusDiv.textContent = "No records found in database";
+            return;
+        }
+        
+        // Get user-defined axis bounds - convert Y values from km to meters
+        const xMin = parseFloat(xMinInput.value) || 0;
+        const xMax = parseFloat(xMaxInput.value) || 360;
+        const yMin = parseFloat(yMinInput.value) || 0;   // degrees
+        const yMax = parseFloat(yMaxInput.value) || 90;
+        
+        if (xMin >= xMax || yMin >= yMax) {
+            statusDiv.textContent = "Error: Max values must be greater than min values";
+            return;
+        }
+        
+        // Clear canvas
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw grid and axes first and get plotting area
+        const plotArea = drawAxesAndGrid(ctx, xMin, xMax, yMin, yMax, canvas.width, canvas.height);
+        
+        // Get LOS parameters
+        const showLOS = losEnabled.checked;
+        const showRadioHorizon = radioHorizonEnabled.checked;
+        const observerHeight = parseFloat(observerHeightInput.value) || 0;
+        const earthRadius = 6371;
+        const refractionFactor = parseFloat(refractionFactorInput.value) || 1.33;
+        const losColor = losColorInput.value;
+        const radioHorizonColor = radioHorizonColorInput.value;
+        
+        // Draw horizon curves if enabled (using plotArea)
+        if (showRadioHorizon) {
+            drawHorizonCurve(ctx, xMin, xMax, yMin, yMax, plotArea, 
+                           observerHeight, earthRadius, radioHorizonColor, 
+                           'Radio Horizon', refractionFactor);
+        }
+
+        if (showLOS) {
+            drawHorizonCurve(ctx, xMin, xMax, yMin, yMax, plotArea, 
+                           observerHeight, earthRadius, losColor, 'LOS');
+        }
+		// Draw the color bar legend
+        drawColorBarLegend(ctx, plotArea);
+        
+        // Calculate sampling rate
+        const samplingRate = calculateSamplingRate(totalCount, qualitySelect.value);
+        const displayCount = Math.min(Math.ceil(totalCount / samplingRate), MAX_POINTS);
+        
+        statusDiv.textContent = `Processing ${totalCount.toLocaleString()} records (sampling 1:${samplingRate})...`;
+        
+        // Render points within the plotting area
+        await renderAllPoints(db, {
+            minX: xMin,
+            maxX: xMax,
+            minY: yMin,
+            maxY: yMax
+        }, totalCount, samplingRate, plotArea);
+
+        // Create download link
+        const plotDataURL = canvas.toDataURL('image/png');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // Set download link
+        downloadBtn.href = plotDataURL;
+        downloadBtn.style.display = 'inline-block';
+		viewBtn.style.display = 'inline-block';
+
+		// View button click handler
+		viewBtn.onclick = function() {
+			modal.style.display = "block";
+			modalImg.src = canvas.toDataURL('image/png');
+			document.body.style.overflow = "hidden"; // Prevent page scrolling
+		};
+
+        statusDiv.textContent = `Done! Generated ${res.width}×${res.height} plot from ${totalCount.toLocaleString()} records (1:${samplingRate} sampling).`;
+
+    } catch (error) {
+        console.error(error);
+        statusDiv.textContent = `Error: ${error.message}`;
+    } finally {
+        generateBtn.disabled = false;
+        progressDiv.style.display = 'none';
+    }
+}
+
+function drawAxesAndGrid(ctx, xMin, xMax, yMin, yMax, width, height) {
+    // Set drawing style
+    ctx.strokeStyle = '#aaa';
+    ctx.fillStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Padding for axis labels
+    const padding = { top: 20, right: 40, bottom: 40, left: 60 };
+    
+    // Calculate axis positions
+    const xAxisY = height - padding.bottom;
+    const yAxisX = padding.left;
+    
+    // Draw X axis
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, xAxisY);
+    ctx.lineTo(width - padding.right, xAxisY);
+    ctx.stroke();
+    
+    // Draw Y axis
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, padding.top);
+    ctx.lineTo(yAxisX, xAxisY);
+    ctx.stroke();
+    
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+
+    const xTickInterval = calculateTickInterval(xRange, width - padding.left - padding.right);
+    const yTickInterval = calculateTickInterval(yRange, height - padding.top - padding.bottom);
+    
+    // Draw X axis ticks and grid lines
+    let firstXTick = Math.ceil(xMin / xTickInterval) * xTickInterval;
+    for (let x = firstXTick; x <= xMax; x += xTickInterval) {
+        const canvasX = padding.left + ((x - xMin) / xRange) * (width - padding.left - padding.right);
+        
+        ctx.beginPath();
+        ctx.moveTo(canvasX, xAxisY);
+        ctx.lineTo(canvasX, xAxisY + 5);
+        ctx.stroke();
+        
+        ctx.fillText(x % 1 === 0 ? x.toString() : x.toFixed(1), canvasX, xAxisY + 20);
+
+        // Grid line
+        ctx.strokeStyle = '#333';
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(canvasX, padding.top);
+        ctx.lineTo(canvasX, xAxisY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#aaa';
+    }
+    
+    // Draw Y axis ticks and grid lines (now using degrees)
+    let firstYTick = Math.ceil(yMin / yTickInterval) * yTickInterval;
+    for (let yDeg = firstYTick; yDeg <= yMax; yDeg += yTickInterval) {
+        const canvasY = height - padding.bottom - ((yDeg - yMin) / yRange) * (height - padding.top - padding.bottom);
+        
+        ctx.beginPath();
+        ctx.moveTo(yAxisX, canvasY);
+        ctx.lineTo(yAxisX - 5, canvasY);
+        ctx.stroke();
+        
+        ctx.textAlign = 'right';
+        ctx.fillText(`${yDeg}°`, yAxisX - 10, canvasY);
+        ctx.textAlign = 'center';
+
+        ctx.strokeStyle = '#333';
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(yAxisX, canvasY);
+        ctx.lineTo(width - padding.right, canvasY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#aaa';
+    }
+    
+    // Draw axis labels
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Azimuth (degrees)', width / 2, height - 10);
+    
+    // Rotated Y axis label
+    ctx.save();
+    ctx.translate(10, height / 2.5);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Elevation', 0, 0);
+    ctx.restore();
+    
+    // Title
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText('Radiosonde SNR vs Elevation and Azimuth', width / 2, 15);
+    
+    return {
+        plotX: padding.left,
+        plotY: padding.top,
+        plotWidth: width - padding.left - padding.right,
+        plotHeight: height - padding.top - padding.bottom,
+        xAxisY: xAxisY,
+        yAxisX: yAxisX
+    };
+}
+
+function calculateTickInterval(range, pixels) {
+    const targetTicks = pixels / 100; // Aim for about 100px between ticks
+    const roughInterval = range / targetTicks;
+    
+    // Find the nearest "nice" interval (1, 2, 5, 10, 20, 50, etc.)
+    const magnitude = Math.pow(10, Math.floor(Math.log10(roughInterval)));
+    const normalized = roughInterval / magnitude;
+    
+    let niceInterval;
+    if (normalized < 1.5) {
+        niceInterval = magnitude;
+    } else if (normalized < 3) {
+        niceInterval = 2 * magnitude;
+    } else if (normalized < 7) {
+        niceInterval = 5 * magnitude;
+    } else {
+        niceInterval = 10 * magnitude;
+    }
+    
+    return niceInterval;
+}
+        
+        // Database functions
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('RadiosondeDB', 2);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(new Error("Couldn't open database"));
+            });
+        }
+        
+        function getRecordCount(db) {
+            return new Promise((resolve) => {
+                const tx = db.transaction(['logEntries'], 'readonly');
+                const store = tx.objectStore('logEntries');
+                const request = store.count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => resolve(0);
+            });
+        }
+        
+async function renderAllPoints(db, bounds, totalCount, samplingRate, plotArea) {
+    let renderedCount = 0;
+    let lastKey = null;
+    let processed = 0;
+    let lastUpdate = 0;
+    
+    // Use the user-defined bounds
+    const xMin = bounds.minX;
+    const xMax = bounds.maxX;
+    const yMin = bounds.minY;
+    const yMax = bounds.maxY;
+    
+    // Extract plotting area dimensions
+    const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
+    
+    // Process in batches to avoid transaction timeouts
+    while (processed < totalCount && renderedCount < MAX_POINTS) {
+        const batch = await getRecordsBatch(db, lastKey, BATCH_SIZE);
+        if (batch.length === 0) break;
+        
+        for (let i = 0; i < batch.length; i += samplingRate) {
+            const entry = batch[i];
+			if (entry.azimuth !== null && entry.elevation !== null && entry.snr !== null) {
+			// Only plot points within bounds
+				if (entry.azimuth >= xMin && entry.azimuth <= xMax && 
+					entry.elevation >= yMin && entry.elevation <= yMax) {
+					
+					// X position = Azimuth
+					const x = plotX + ((entry.azimuth - xMin) / (xMax - xMin)) * plotWidth;
+					
+					// Y position = Elevation (inverted because canvas Y=0 is at top)
+					const y = xAxisY - ((entry.elevation - yMin) / (yMax - yMin)) * plotHeight;
+					
+					// Color = SNR
+					const [r, g, b] = getColorForSNR(entry.snr);
+					ctx.fillStyle = `rgb(${r},${g},${b})`;
+					
+                    // Draw point (1x1 pixel for maximum performance)
+                    ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+					
+                    renderedCount++;
+                    if (renderedCount >= MAX_POINTS) break;
+				}
+			}
+            
+            lastKey = entry.id;
+            processed += samplingRate;  // Changed from processed++ to processed += samplingRate
+        }
+        
+        // Update progress - now showing processed * samplingRate would be redundant, so we just show processed
+        const now = Date.now();
+        if (now - lastUpdate > 100) { // Update every 100ms
+            const progress = Math.min(100, (processed / totalCount) * 100);
+            progressBar.style.width = `${progress}%`;
+            statusDiv.textContent = `Processed ${Math.min(processed, totalCount).toLocaleString()} of ${totalCount.toLocaleString()} records (${renderedCount.toLocaleString()} points rendered)...`;
+            lastUpdate = now;
+        }
+        
+        // Yield to UI thread periodically
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    
+    return renderedCount;
+}
+        
+        function getRecordsBatch(db, lastKey, batchSize) {
+            return new Promise((resolve) => {
+                const tx = db.transaction(['logEntries'], 'readonly');
+                const store = tx.objectStore('logEntries');
+                const request = lastKey 
+                    ? store.openCursor(IDBKeyRange.lowerBound(lastKey, true))
+                    : store.openCursor();
+                
+                const batch = [];
+                let counter = 0;
+                
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (!cursor || counter >= batchSize) {
+                        return resolve(batch);
+                    }
+                    
+                    batch.push(cursor.value);
+                    counter++;
+                    cursor.continue();
+                };
+                
+                request.onerror = () => resolve(batch);
+            });
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', generatePlot);
+        
+        // Initialization
+        statusDiv.textContent = "Select settings and click Generate Plot";
+		
+
+
+		// Close modal when clicking [X]
+		span.onclick = function() {
+			modal.style.display = "none";
+			document.body.style.overflow = "auto"; // Restore scrolling
+		};
+
+		// Close modal when clicking outside image
+		modal.onclick = function(event) {
+			if (event.target === modal) {
+				modal.style.display = "none";
+				document.body.style.overflow = "auto";
+			}
+		};
+
+		// Close modal with ESC key
+		document.addEventListener('keydown', function(event) {
+			if (event.key === "Escape" && modal.style.display === "block") {
+				modal.style.display = "none";
+				document.body.style.overflow = "auto";
+			}
+		});
+    </script>
+</div>
+</body>
+</html>
