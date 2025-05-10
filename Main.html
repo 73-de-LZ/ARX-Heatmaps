@@ -355,7 +355,7 @@ async function markFileProcessed(filename) {
                 // Parse the configuration file
                 const latMatch = text.match(/station_lat\s*=\s*(-?[\d.]+)/);
                 const lonMatch = text.match(/station_lon\s*=\s*(-?[\d.]+)/);
-                const altMatch = text.match(/station_alt\s*=\s*([\d.]+)/);
+                const altMatch = text.match(/station_alt\s*=\s*(-?[\d.]+)/);
                 const callsignMatch = text.match(/uploader_callsign\s*=\s*([^\s]+)/);
                 const aprsUserMatch = text.match(/aprs_user\s*=\s*([^\s]+)/);
                 
@@ -847,7 +847,7 @@ function displayData(data) {
                             const text = await cfgFile.text();
                             const latMatch = text.match(/station_lat\s*=\s*(-?[\d.]+)/);
                             const lonMatch = text.match(/station_lon\s*=\s*(-?[\d.]+)/);
-                            const altMatch = text.match(/station_alt\s*=\s*([\d.]+)/);
+                            const altMatch = text.match(/station_alt\s*=\s*(-?[\d.]+)/);
                             const callsignMatch = text.match(/uploader_callsign\s*=\s*([^\s]+)/);
                             const aprsUserMatch = text.match(/aprs_user\s*=\s*([^\s]+)/);
                             
