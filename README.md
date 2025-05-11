@@ -27,7 +27,8 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 - Include a copy of the `station.cfg` file in the same folder.
 - Copy all .html files from this repository to a different local folder on your PC.
 
-> ⚠️ **If you have many log files (e.g., over 2000), process them in batches:**
+> ⚠️ **If you have many log files (e.g., over 2,000) and experience browser crashes during the database update,
+> you can try the Low Memory version (Main_LowMEM.html) or process them in batches:**
 > - Copy a portion of the logs.
 > - Open `main.html` and update the database.
 > - Add the next batch and repeat the process.
