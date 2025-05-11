@@ -27,13 +27,19 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 - Include a copy of the `station.cfg` file in the same folder.
 - Copy all .html files from this repository to a different local folder on your PC.
 
+### 2. Update the Database
+
+- Open `main.html` in your browser or `Main_LowMEM.html` if you have a large number of log files (e.g., over 2,000).
+- Click **Update Database** to process and store the data.
+- You can repeat this step anytime to add new logs.
+
 ### ⚠️ Troubleshooting Tips
 
 <details>
-<summary><strong>⚠️ Having performance issues or crashes?</strong></summary>
+<summary><strong>⚠️ Having performance issues or crashes during database update?</strong></summary>
 <small>
 
-If you have a large number of log files (e.g., over 2,000) and experience browser crashes during database updates, try the following:
+If you experience browser crashes during database updates, try the following:
 
 - Use the Low Memory version: `Main_LowMEM.html` (uses `openCursor()` instead of `getAll()`).
 - Or process logs in smaller batches:
@@ -70,12 +76,6 @@ Sometimes the browser’s local database can get stuck or corrupted. Here's how 
 
 </small>
 </details>
-
-### 2. Update the Database
-
-- Open `main.html` in your browser.
-- Click **Update Database** to process and store the data.
-- You can repeat this step anytime to add new logs.
 
 ### 3. Generate and View Plots
 
