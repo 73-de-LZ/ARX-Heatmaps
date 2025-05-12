@@ -62,7 +62,7 @@ If you experience browser crashes during database updates, try the following:
 - Or process logs in smaller batches:
   - Copy a portion of the logs, less than 1000 files.
   - Open `main.html` and update the database.
-  - When DB is updated remove that log files.
+  - When DB is updated remove these log files.
   - Add the next batch and repeat the process until all logs are imported.
 
 </small>
