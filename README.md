@@ -60,8 +60,9 @@ If you experience browser crashes during database updates, try the following:
 
 - Use the Low Memory version: `Main_LowMEM.html` (uses `openCursor()` instead of `getAll()`).
 - Or process logs in smaller batches:
-  - Copy a portion of the logs.
+  - Copy a portion of the logs, less than 1000 files.
   - Open `main.html` and update the database.
+  - When DB is updated remove that log files.
   - Add the next batch and repeat the process until all logs are imported.
 
 </small>
