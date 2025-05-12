@@ -33,6 +33,23 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 - Click **Update Database** to process and store the data.
 - You can repeat this step anytime to add new logs.
 
+<details>
+<summary><strong>* Firefox users:</strong></summary>
+<small>
+
+You will need to host the .html files on local server. To run a simple server:
+
+```
+cd /path/to/yourDirectory/with_html_files/
+python3 -m http.server 8000
+```
+Open .html files from:
+http://localhost:8000
+
+** Windows and Firefox - you will need Python to be installed.
+</small>
+</details>
+
 ### ⚠️ Troubleshooting Tips
 
 <details>
