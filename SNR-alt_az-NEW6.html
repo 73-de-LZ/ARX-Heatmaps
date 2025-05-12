@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.00 - With Aggregation/Rendering Separation -->
+<!-- Ver.3.01 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     /* ===== BASE STYLES ===== */
     body {
         margin: 0;
-        padding: 20px;
+        padding: 10px;
         background-color: #121212;
         color: #e0e0e0;
         font-family: Arial, sans-serif;
@@ -17,13 +17,12 @@
     }
 
     /* ===== MAIN CONTROLS CONTAINER ===== */
-    #controls {
+    #controls-container {
         display: flex;
         flex-direction: column;
         gap: 15px;
-        max-width: 1000px;
         margin: 20px auto;
-        align-items: center;
+        align-items: flex-start;
     }
 
     /* ===== CONTROL ROWS ===== */
@@ -39,7 +38,8 @@
     .control-group {
         background-color: #1e1e1e;
         border-radius: 6px;
-        padding: 12px;
+        padding: 5px;
+		justify-content: center;
     }
 
     .control-group-flex {
@@ -52,23 +52,20 @@
     }
 
     .input-hint {
-        color: #aaa;
-        font-size: 0.8em;
-        margin-left: 10px;
-        font-style: italic;
+        margin-left: 6px;
     }
 
     /* ===== RANGE CONTROLS ===== */
     .range-control {
         background-color: #1e1e1e;
         border-radius: 6px;
-        padding: 12px;
+        padding: 4px;
     }
 
     .range-inputs {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 4px;
     }
 
     .range-label {
@@ -76,26 +73,37 @@
         text-align: right;
     }
 
-    /* ===== 3-COLUMN LAYOUT ===== */
-    .los-controls-grid {
-        display: grid;
-        grid-template-columns: auto auto auto;
-        justify-content: start;
-        gap: 12px;
-    }
+    /* ===== LOS controls LAYOUT ===== */
+	.los-controls-grid {
+		display: grid;
+		grid-template-columns: auto auto auto;
+		justify-content: start; /* Changed from center to start */
+		gap: 5px;
+	}
+
+	.los-controls-group {
+		font-size: 0.85em;
+		border: 1px solid #444;
+		border-radius: 8px;
+		padding: 0px;
+		margin: 1px 0 1px 0; /* Removed 'auto' which was centering it */
+		width: fit-content;
+		background-color: #1a1a1a;
+		margin-right: auto; /* This forces left alignment */
+	}
 
     /* ===== FORM ROWS ===== */
     .form-row {
         display: flex;
         align-items: center;
-        margin-bottom: 6px;
-        height: 22px;
+        margin-bottom: 0px;
+        height: 20px;
         justify-content: space-between;
     }
 
     /* ===== INPUT ELEMENTS ===== */
     input, select {
-        padding: 4px 8px;
+        padding: 2px 2px;
         background-color: #1e1e1e;
         color: #e0e0e0;
         border: 1px solid #333;
@@ -120,31 +128,35 @@
 		margin-top: 10px;
 		justify-content: center;
 	}
-
+	
 	button {
-		padding: 10px 20px;
+		padding: 5px 10px;
 		background-color: #6da6e8;
 		color: #000;
 		border: none;
 		border-radius: 4px;
-		cursor: pointer;
 		font-size: 16px;
 	}
-
-	/* Disabled state */
+	button:hover {
+		background-color: #89befa;
+	}
 	button:disabled {
 		opacity: 0.2;
 		cursor: not-allowed;
 	}
+	input:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
+	}
 
-    #progress {
+    #progress-container {
         width: 100%;
         background-color: #333;
         border-radius: 4px;
         margin: 20px 0;
         display: none;
     }
-    #progressBar {
+    #progress-bar {
         height: 20px;
         background-color: #6da6e8;
         border-radius: 4px;
@@ -152,7 +164,7 @@
         transition: width 0.3s;
     }
 
-    #status {
+    #status-message {
         margin: 20px 0;
         padding: 10px;
         border-radius: 4px;
@@ -183,7 +195,7 @@
         object-fit: contain;
     }
 
-    .close {
+    .modal-close {
         position: fixed;
         top: 20px;
         right: 30px;
@@ -195,7 +207,7 @@
     }
     
     /* ===== RESPONSIVE ADJUSTMENTS ===== */
-    @media (max-width: 768px) {
+    @media (max-width: 550px) {
         .los-controls-grid {
             grid-template-columns: 1fr;
         }
@@ -211,155 +223,185 @@
 </style>
 </head>
 <body>
-    <h2>Receiver SNR vs Radiosonde Altitude and Azimuth</h2>
-<div id="controls">
+    <h3>Receiver SNR vs Radiosonde Azimuth and Altitude</h3>
+<!-- SAMPLING CONTROLS -->	
+<div id="sampling-controls-container">
     <!-- First Row AGGREGATE CONTROLS -->
     <div class="controls-row">
-        <!-- Resolution -->
+        <!-- Sampling Resolution -->
         <div class="control-group control-group-flex">
-            <label for="resolution" class="control-label">Resolution:</label>
-            <select id="resolution">
+            <label for="Sresolution" class="control-label">Sampling for:</label>
+            <select id="Sresolution">
                 <option value="1280x720">HD (1280×720)</option>
                 <option value="1366x768">WXGA (1366×768)</option>
                 <option value="1920x1080" selected>Full HD (1920×1080)</option>
                 <option value="2560x1440">QHD (2560×1440)</option>
                 <option value="3840x2160">4K (3840×2160)</option>
-                <option value="custom">Custom</option>
             </select>
-		</div>
-		<div class="control-group control-group-flex">
-			<label class="range-label">Altitude (km):</label>
-			<div class="range-inputs">
-				<input type="number" id="yMin" placeholder="Min" value="0" step="0.5">
-				<span>to</span>
-				<input type="number" id="yMax" placeholder="Max" value="40" step="1">
-			</div>
         </div>
-		<div class="control-group control-group-flex">
-                <label class="range-label">Azimuth (deg):</label>
-                <div class="range-inputs">
-                    <input type="number" id="xMin" placeholder="Min" value="0" step="10">
-                    <span>to</span>
-                    <input type="number" id="xMax" placeholder="Max" value="360" step="10">
-                </div>
-        </div>
-    </div>
 
-
-
-    <!-- Second Row Controls -->
-
-
-    <!-- Third Row - LOS Controls -->
-    <div id="losControls" class="los-controls-grid">
-        <!-- Column 1 - Observer Settings -->
-        <div class="range-control">
-            <div class="form-row">
-                <label for="observerHeight" class="range-label" style="color: #444;">RX Antenna ASL (m):</label>
-                <input type="number" id="observerHeight" value="100" min="0" step="10" disabled>
-            </div>
-            <div class="form-row">
-                <label for="refractionFactor" class="range-label" style="color: #444;">Refraction Factor:</label>
-                <input type="number" id="refractionFactor" value="1.33" min="1" max="2" step="0.01" disabled>
+        <!-- Azimuth -->
+        <div class="control-group control-group-flex">
+            <label class="range-label">Azimuth:</label>
+            <div class="range-inputs">
+                <input type="number" id="xMin" placeholder="Min" value="0" step="10">
+                <span>to</span>
+                <input type="number" id="xMax" placeholder="Max" value="360" step="10">
+                <span>&#176;</span>
             </div>
         </div>
 
-        <!-- Column 2 - Toggles -->
-        <div class="range-control">
-            <div class="form-row">
-                <label for="losEnabled" class="range-label" style="color: #444;">Show Line of Sight:</label>
-                <input type="checkbox" id="losEnabled" disabled>
-            </div>
-            <div class="form-row">
-                <label for="radioHorizonEnabled" class="range-label" style="color: #444;">Show Radio Horizon:</label>
-                <input type="checkbox" id="radioHorizonEnabled" disabled>
+        <!-- Altitude -->
+        <div class="control-group control-group-flex">
+            <label class="range-label">Altitude:</label>
+            <div class="range-inputs">
+                <input type="number" id="yMin" placeholder="Min" value="0" step="0.5">
+                <span>to</span>
+                <input type="number" id="yMax" placeholder="Max" value="40" step="1">
+                <span>km</span>
             </div>
         </div>
 
-        <!-- Column 3 - Colors -->
-        <div class="range-control">
-            <div class="form-row">
-                <label for="losColor" class="range-label" style="color: #444;">LOS Color:</label>
-                <input type="color" id="losColor" value="#44FF00" disabled>
-            </div>
-            <div class="form-row">
-                <label for="radioHorizonColor" class="range-label" style="color: #444;">Radio Horizon:</label>
-                <input type="color" id="radioHorizonColor" value="#FBFF22" disabled>
-            </div>
+        <!-- Button goes here inline -->
+        <div class="control-group control-group-flex">
+            <button id="aggregateBtn">Aggregate Data</button>
         </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-        <button id="aggregateBtn">Aggregate Data</button>
     </div>
 </div>
-    <!-- Status and progressbar lines -->
-    <div id="status">Ready to aggregate data...</div>
-    <canvas id="plotCanvas" style="display: none;"></canvas>
-    <div id="progress">
-        <div id="progressBar"></div>
+
+<!-- Status and progressbar lines -->
+<div id="progress-container">
+	<div id="progress-bar"></div>
+</div>
+<div id="status-message">Ready to aggregate data...</div>
+<canvas id="plotCanvas" style="display: none;"></canvas>
+
+<!-- LOS CONTROLS -->
+<div id="los-controls-container" style="display: none;">
+    <!-- LOS Controls -->
+    <div class="los-controls-group">
+        <div id="losControls" class="los-controls-grid">
+            <!-- Column 1 - Observer Settings -->
+            <div class="range-control">
+                <div class="form-row">
+                    <label for="observerHeight" class="range-label" style="color: #444;">RX Antenna ASL (m):</label>
+                    <input type="number" id="observerHeight" value="100" min="0" step="10" disabled>
+                </div>
+                <div class="form-row">
+                    <label for="refractionFactor" class="range-label" style="color: #444;">Refraction Factor:</label>
+                    <input type="number" id="refractionFactor" value="1.33" min="1" max="2" step="0.01" disabled>
+                </div>
+            </div>
+
+            <!-- Column 2 - Toggles -->
+            <div class="range-control">
+                <div class="form-row">
+                    <label for="losEnabled" class="range-label" style="color: #444;">Show Line of Sight:</label>
+                    <input type="checkbox" id="losEnabled" disabled>
+                </div>
+                <div class="form-row">
+                    <label for="radioHorizonEnabled" class="range-label" style="color: #444;">Show Radio Horizon:</label>
+                    <input type="checkbox" id="radioHorizonEnabled" disabled>
+                </div>
+            </div>
+
+            <!-- Column 3 - Colors -->
+            <div class="range-control">
+                <div class="form-row">
+                    <label for="losColor" class="range-label" style="color: #444;">LOS Color:</label>
+                    <input type="color" id="losColor" value="#44FF00" disabled>
+                </div>
+                <div class="form-row">
+                    <label for="radioHorizonColor" class="range-label" style="color: #444;">Radio Horizon:</label>
+                    <input type="color" id="radioHorizonColor" value="#FBFF22" disabled>
+                </div>
+            </div>
+        </div>
     </div>
-	
-    <!-- RENDER CONTROLS -->	
-	<div class="controls-row">
-		<!-- SNR Range -->
-        <div class="range-control">
-            <div class="form-row">
-                <label class="range-label">SNR (dB):</label>
+</div>
+
+<!-- RENDER CONTROLS -->
+<div id="render-controls-container">
+    <!-- RENDER CONTROLS GROUP -->
+    <div class="controls-row">
+        <div class="control-group control-group-flex">
+                <label for="Presolution" class="control-label">Draw to:</label>
+                <select id="Presolution">
+                    <option value="1280x720">HD (1280×720)</option>
+                    <option value="1366x768">WXGA (1366×768)</option>
+                    <option value="1920x1080" selected>Full HD (1920×1080)</option>
+                    <option value="2560x1440">QHD (2560×1440)</option>
+                    <option value="3840x2160">4K (3840×2160)</option>
+                </select>
+        </div>
+        <!-- FILTER -->
+        <div class="control-group control-group-flex">
+                <label class="range-label">Distance Filter:</label>
+                <div class="range-inputs">
+                    <input type="number" id="FilterDistMin" placeholder="Min" value="0" step="10">
+                    <span>to</span>
+                    <input type="number" id="FilterDistMax" placeholder="Max" value="900" step="10">
+                    <span>km</span>
+                </div>
+        </div>
+        <!-- SNR Range -->
+        <div class="control-group control-group-flex">
+                <label class="range-label">SNR:</label>
                 <div class="range-inputs">
                     <input type="number" id="snrMin" placeholder="Min" value="8" step="1">
                     <span>to</span>
                     <input type="number" id="snrMax" placeholder="Max" value="28" step="1">
+                    <span>dB</span>
                 </div>
-            </div>
         </div>
         <!-- Altitude Range -->
-        <div class="range-control">
-            <div class="form-row">
-				<select id="viewMode">
-				  <option value="avg">Average SNR</option>
-				  <option value="first">First SNR</option>
-				  <option value="last">Last SNR</option>
-				  <option value="min">Minimum SNR</option>
-				  <option value="max">Maximum SNR</option>
-				  <option value="count">Sample Count</option>
-				  <option value="sum">Sum SNR</option>
-				</select>
-            </div>
+        <div class="control-group control-group-flex">
+                <select id="viewMode">
+                    <option value="min">Minimum SNR</option>
+                    <option value="avg" selected>Average SNR</option>
+                    <option value="max">Maximum SNR</option>
+                    <option value="first">First SNR</option>
+                    <option value="last">Last SNR</option>
+                    <option value="sum">Sum SNR</option>
+                    <option value="count">Counts per Point</option>
+                </select>
         </div>
-        <div class="range-control">
-            <div class="form-row">
+        <div class="control-group control-group-flex">
                 <label for="densityEnabled" class="control-label">Brightness by Density:</label>
-                <input type="checkbox" id="densityEnabled" checked>		
-            </div>
+                <input type="checkbox" id="densityEnabled" checked>        
         </div>
-        <div class="range-control">
-            <div class="form-row">
-	        <!-- Color Scheme -->
-				<label for="colorScheme" class="control-label">Color Scheme:</label>
-				<select id="colorScheme">
-					<option value="jet">Jet</option>
-					<option value="viridis">Viridis</option>
-					<option value="plasma">Plasma</option>
-					<option value="magma">Magma</option>
-					<option value="inferno">Inferno</option>
-					<option value="thermal">Thermal</option>
-					<option value="rainbow" selected>Rainbow</option>
-					<option value="grayscale">Grayscale</option>
-				</select>
-            </div>
+        <div class="control-group control-group-flex">
+                <!-- Color Scheme -->
+                <label for="colorScheme" class="control-label">Color Scheme:</label>
+                <select id="colorScheme">
+                    <option value="jet">Jet</option>
+                    <option value="viridis">Viridis</option>
+                    <option value="plasma">Plasma</option>
+                    <option value="magma">Magma</option>
+                    <option value="inferno">Inferno</option>
+                    <option value="thermal">Thermal</option>
+                    <option value="rainbow" selected>Rainbow</option>
+                    <option value="grayscale">Grayscale</option>
+                </select>
         </div>
-	</div>		
-    <div class="action-buttons">
-        <button id="renderViewBtn">Render/View</button>
+        
+        <!-- Button placed here in the same row -->
+        <div class="control-group control-group-flex">
+                <button id="renderBtn">Render</button>
+        </div>
+		<div class="control-group control-group-flex">
+                <button id="viewBtn">View</button>
+        </div>
     </div>
+</div> 
+
+
+
     <div id="imageModal" class="modal">
-        <span class="close">&times;</span>
+        <span class="modal-close">&times;</span>
         <img class="modal-content" id="modalImage">
     </div>
 
-    
 <script>
     // =============================================
     // 1. CONFIGURATION AND GLOBALS
@@ -428,7 +470,8 @@
     };
 
     // Global state
-    let currentResolution = { width: 1920, height: 1080 };
+	let samplingResolution = { width: 1920, height: 1080 };
+    let plotResolution = { width: 1920, height: 1080 };
     let plotArea = null;
     let aggregatedData = null;
     let maxCount = 1;
@@ -440,16 +483,15 @@
     
     // DOM elements
     const aggregateBtn = document.getElementById('aggregateBtn');
-	const renderViewBtn = document.getElementById('renderViewBtn');
-    const renderBtn = document.getElementById('renderBtn');  // to change
-    const viewBtn = document.getElementById('viewBtn');  // to change
+    const renderBtn = document.getElementById('renderBtn'); 
+    const viewBtn = document.getElementById('viewBtn');
     const downloadBtn = document.getElementById('downloadBtn'); // to change
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImage');
-    const span = document.querySelector('.close');
-    const statusDiv = document.getElementById('status');
-    const progressDiv = document.getElementById('progress');
-    const progressBar = document.getElementById('progressBar');
+    const span = document.querySelector('.modal-close');
+    const statusDiv = document.getElementById('status-message');
+    const progressDiv = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
     const xMinInput = document.getElementById('xMin');
@@ -459,7 +501,8 @@
     const snrMinInput = document.getElementById('snrMin');
     const snrMaxInput = document.getElementById('snrMax');
 	
-	const resolutionSelect = document.getElementById('resolution');
+	const SresolutionSelect = document.getElementById('Sresolution'); // sampling Resolution
+	const PresolutionSelect = document.getElementById('Presolution'); // plot Resolution
 	
     const losEnabled = document.getElementById('losEnabled');
     const radioHorizonEnabled = document.getElementById('radioHorizonEnabled');
@@ -497,7 +540,7 @@
             statusDiv.textContent = "Aggregating data...";
             
             // Reset and initialize
-            setCanvasSize(currentResolution.width, currentResolution.height);
+            setCanvasSize(plotResolution.width, plotResolution.height);
             
             // Aggregate data
             await performAggregation();
@@ -510,7 +553,8 @@
             statusDiv.textContent = `Error: ${error.message}`;
         } finally {
             aggregateBtn.disabled = true;
-			renderViewBtn.disabled = false; 
+			renderBtn.disabled = false;
+			viewBtn.disabled = false;
             progressDiv.style.display = 'none';
         }
     }
@@ -525,11 +569,11 @@
                 const yMax = (parseFloat(yMaxInput.value) || 40) * 1000;
                 
                 // Calculate plot area
-                currentResolution = getResolution();
-                plotArea = calculatePlotArea(xMin, xMax, yMin, yMax, currentResolution.width, currentResolution.height);
+                plotResolution = getResolution();
+                plotArea = calculatePlotArea(xMin, xMax, yMin, yMax, plotResolution.width, plotResolution.height);
                 
                 // Initialize aggregated data structure
-                aggregatedData = initializeAggregatedData(currentResolution.width, currentResolution.height);
+                aggregatedData = initializeAggregatedData(plotResolution.width, plotResolution.height);
                 
                 // Process data from database
                 const db = await openDatabase();
@@ -649,7 +693,7 @@
                     const y = Math.round(xAxisY - ((entry.alt - yMin) / (yMax - yMin)) * plotHeight);
                     
                     // Ensure we're within bounds
-                    if (x >= 0 && x < currentResolution.width && y >= 0 && y < currentResolution.height) {
+                    if (x >= 0 && x < plotResolution.width && y >= 0 && y < plotResolution.height) {
                         updateAggregatedData(aggregatedData, x, y, entry);
                         renderedCount++;
                     }
@@ -718,7 +762,7 @@
             statusDiv.textContent = "Rendering plot...";
             
             // Set canvas size to match the aggregation resolution
-            setCanvasSize(currentResolution.width, currentResolution.height);
+            setCanvasSize(plotResolution.width, plotResolution.height);
             
             // Get current SNR range
             MIN_SNR = parseFloat(snrMinInput.value) || 8;
@@ -736,7 +780,7 @@
             console.error('Plot rendering failed:', error);
             statusDiv.textContent = `Error: ${error.message}`;
         } finally {
-            //renderViewBtn.disabled = false;
+            //renderBtn.disabled = false;
         }
     }
 
@@ -750,7 +794,7 @@
 		const viewMode = document.getElementById('viewMode').value;
 		
 		// Create image data buffer
-		const imageData = ctx.createImageData(currentResolution.width, currentResolution.height);
+		const imageData = ctx.createImageData(plotResolution.width, plotResolution.height);
 		const data = imageData.data;
 		
 		// Track min/max values for normalization (except for color modes)
@@ -759,8 +803,8 @@
 		
 		// First pass: calculate min/max if needed for normalization
 		if (viewMode === 'count' || viewMode === 'sum') {
-			for (let x = 0; x < currentResolution.width; x++) {
-				for (let y = 0; y < currentResolution.height; y++) {
+			for (let x = 0; x < plotResolution.width; x++) {
+				for (let y = 0; y < plotResolution.height; y++) {
 					const cell = aggregatedData[x][y];
 					if (cell.count >= MIN_CELL_COUNT) {
 						const value = getCellValue(cell, viewMode);
@@ -772,10 +816,10 @@
 		}
 		
 		// Second pass: render the data
-		for (let x = 0; x < currentResolution.width; x++) {
-			for (let y = 0; y < currentResolution.height; y++) {
+		for (let x = 0; x < plotResolution.width; x++) {
+			for (let y = 0; y < plotResolution.height; y++) {
 				const cell = aggregatedData[x][y];
-				const idx = (y * currentResolution.width + x) * 4;
+				const idx = (y * plotResolution.width + x) * 4;
 				
 				if (cell.count >= MIN_CELL_COUNT) {
 					const value = getCellValue(cell, viewMode);
@@ -869,15 +913,8 @@
 	}
 	
     function getResolution() {
-        if (resolutionSelect.value === 'custom') {
-            return {
-                width: parseInt(document.getElementById('customWidth').value) || 1920,
-                height: parseInt(document.getElementById('customHeight').value) || 1080
-            };
-        } else {
-            const [width, height] = resolutionSelect.value.split('x').map(Number);
-            return { width, height };
-        }
+        const [width, height] = SresolutionSelect.value.split('x').map(Number);
+        return { width, height };
     }
 
     function getColorForSNR(snr) {
@@ -1220,14 +1257,14 @@
     // =============================================
 
     aggregateBtn.addEventListener('click', function() {
-        resolutionSelect.disabled = true; // Lock resolution after aggregation starts
+        SresolutionSelect.disabled = true; // Lock sampling resolution after aggregation starts
 		['yMin', 'yMax', 'xMin', 'xMax'].forEach(id => {
 			document.getElementById(id).disabled = true;
 		});
         aggregateData();
     });
 	
-	renderViewBtn.onclick = function() {
+	viewBtn.onclick = function() {
 		drawALL();
 		modal.style.display = "block";
         
@@ -1287,8 +1324,9 @@
 
     // Initialize
 	aggregateBtn.disabled = false; 
-    resolutionSelect.disabled = false; 
-	renderViewBtn.disabled = true; 
+    SresolutionSelect.disabled = false; 
+	renderBtn.disabled = true;
+	viewBtn.disabled = true;
 //    viewBtn.disabled = true; 
 //    downloadBtn.disabled = true; 
     statusDiv.textContent = "Select settings and click Aggregate Data";
