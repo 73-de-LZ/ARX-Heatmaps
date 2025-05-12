@@ -37,7 +37,7 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 <summary><strong>* Firefox users:</strong></summary>
 <small>
 
-You will need to host the .html files on local server. To run a simple server:
+You will need to host the .html files on a local server. To run a simple server:
 
 ```
 cd /path/to/yourDirectory/with_html_files/
