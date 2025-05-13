@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.01 - With Aggregation/Rendering Separation -->
+<!-- Ver.3.00 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -261,6 +261,16 @@
                 <span>km</span>
             </div>
         </div>
+		<!-- FILTER -->
+        <div class="control-group control-group-flex">
+                <label class="range-label">Distance Filter:</label>
+                <div class="range-inputs">
+                    <input type="number" id="zMin" placeholder="Min" value="0" step="10">
+                    <span>to</span>
+                    <input type="number" id="zMax" placeholder="Max" value="900" step="10">
+                    <span>km</span>
+                </div>
+        </div>
 
         <!-- Button goes here inline -->
         <div class="control-group control-group-flex">
@@ -333,16 +343,6 @@
                     <option value="2560x1440">QHD (2560×1440)</option>
                     <option value="3840x2160">4K (3840×2160)</option>
                 </select>
-        </div>
-        <!-- FILTER -->
-        <div class="control-group control-group-flex">
-                <label class="range-label">Distance Filter:</label>
-                <div class="range-inputs">
-                    <input type="number" id="FilterDistMin" placeholder="Min" value="0" step="10">
-                    <span>to</span>
-                    <input type="number" id="FilterDistMax" placeholder="Max" value="900" step="10">
-                    <span>km</span>
-                </div>
         </div>
         <!-- SNR Range -->
         <div class="control-group control-group-flex">
