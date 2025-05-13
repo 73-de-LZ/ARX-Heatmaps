@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.00 - With Aggregation/Rendering Separation -->
+<!-- Ver.3.04 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -371,19 +371,9 @@
                     <option value="3840x2160">4K (3840×2160)</option>
                 </select>
         </div>
-        <!-- SNR Range -->
-        <div class="control-group control-group-flex">
-                <label class="range-label">SNR:</label>
-                <div class="range-inputs">
-                    <input type="number" id="snrMin" placeholder="Min" value="8" step="1">
-                    <span>to</span>
-                    <input type="number" id="snrMax" placeholder="Max" value="28" step="1">
-                    <span>dB</span>
-                </div>
-        </div>
         <!-- Altitude Range -->
         <div class="control-group control-group-flex">
-                <select id="viewMode">
+                <select id="snrType">
                     <option value="min">Minimum SNR</option>
                     <option value="avg" selected>Average SNR</option>
                     <option value="max">Maximum SNR</option>
@@ -392,6 +382,16 @@
                     <option value="sum">Sum SNR</option>
                     <option value="count">Counts per Point</option>
                 </select>
+        </div>
+		<!-- SNR Range -->
+        <div class="control-group control-group-flex">
+                <label class="range-label">SNR:</label>
+                <div class="range-inputs">
+                    <input type="number" id="snrMin" placeholder="Min" value="8" step="1">
+                    <span>to</span>
+                    <input type="number" id="snrMax" placeholder="Max" value="28" step="1">
+                    <span>dB</span>
+                </div>
         </div>
         <div class="control-group control-group-flex">
                 <label for="densityEnabled" class="control-label">Brightness by Density:</label>
@@ -515,37 +515,47 @@
     let isDataAggregated = false;
     
     // DOM elements
+	const SresolutionSelect = document.getElementById('Sresolution'); // sampling Resolution
     const aggregateBtn = document.getElementById('aggregateBtn');
-    const renderBtn = document.getElementById('renderBtn'); 
-    const viewBtn = document.getElementById('viewBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImage');
-    const span = document.querySelector('.modal-close');
+	const xMinInput = document.getElementById('xMin');
+    const xMaxInput = document.getElementById('xMax');
+    const yMinInput = document.getElementById('yMin');
+    const yMaxInput = document.getElementById('yMax');
+	const zMinInput = document.getElementById('zMin');
+    const zMaxInput = document.getElementById('zMax');
     const statusDiv = document.getElementById('status-message');
     const progressDiv = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
+	
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
     const previewCanvas = document.getElementById('preview-canvas');
     const previewCtx = previewCanvas.getContext('2d');
     const previewContainer = document.getElementById('preview-container');
-    const xMinInput = document.getElementById('xMin');
-    const xMaxInput = document.getElementById('xMax');
-    const yMinInput = document.getElementById('yMin');
-    const yMaxInput = document.getElementById('yMax');
-    const snrMinInput = document.getElementById('snrMin');
-    const snrMaxInput = document.getElementById('snrMax');
-	
-	const SresolutionSelect = document.getElementById('Sresolution'); // sampling Resolution
-	const PresolutionSelect = document.getElementById('Presolution'); // plot Resolution
-	
+
+	// LOS DOMs
     const losEnabled = document.getElementById('losEnabled');
     const radioHorizonEnabled = document.getElementById('radioHorizonEnabled');
     const observerHeightInput = document.getElementById('observerHeight');
     const refractionFactorInput = document.getElementById('refractionFactor');
     const losColorInput = document.getElementById('losColor');
     const radioHorizonColorInput = document.getElementById('radioHorizonColor');
+	
+	// RENDER DOMs
+	const renderBtn = document.getElementById('renderBtn'); 
+    const viewBtn = document.getElementById('viewBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+	
+	const PresolutionSelect = document.getElementById('Presolution'); // plot Resolution	
+	const snrTypeSelect = document.getElementById('snrType'); // SNR type
+    const snrMinInput = document.getElementById('snrMin');
+    const snrMaxInput = document.getElementById('snrMax');
+	
+	const colorSchemeSelect = document.getElementById('colorScheme');
+
+	const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    const span = document.querySelector('.modal-close');
 
     // =============================================
     // 2. AGGREGATION FUNCTIONS
@@ -828,7 +838,7 @@
 
     function drawSNRPlot() {
 		// Get selected view mode from UI
-		const viewMode = document.getElementById('viewMode').value;
+		const snrType = document.getElementById('snrType').value;
 		
 		// Create image data buffer
 		const imageData = ctx.createImageData(plotResolution.width, plotResolution.height);
@@ -839,12 +849,12 @@
 		let dataMax = -Infinity;
 		
 		// First pass: calculate min/max if needed for normalization
-		if (viewMode === 'count' || viewMode === 'sum') {
+		if (snrType === 'count' || snrType === 'sum') {
 			for (let x = 0; x < plotResolution.width; x++) {
 				for (let y = 0; y < plotResolution.height; y++) {
 					const cell = aggregatedData[x][y];
 					if (cell.count >= MIN_CELL_COUNT) {
-						const value = getCellValue(cell, viewMode);
+						const value = getCellValue(cell, snrType);
 						dataMin = Math.min(dataMin, value);
 						dataMax = Math.max(dataMax, value);
 					}
@@ -859,10 +869,10 @@
 				const idx = (y * plotResolution.width + x) * 4;
 				
 				if (cell.count >= MIN_CELL_COUNT) {
-					const value = getCellValue(cell, viewMode);
+					const value = getCellValue(cell, snrType);
 					
 					// Get color based on view mode
-					let [r, g, b] = getColorForViewMode(value, viewMode, dataMin, dataMax);
+					let [r, g, b] = getColorForsnrType(value, snrType, dataMin, dataMax);
 					
 					// Apply density brightness if enabled
 					if (densityEnabled) {
@@ -923,8 +933,8 @@
     // 5. HELPER FUNCTIONS
     // =============================================
 	// Helper function to get the appropriate value from a cell
-	function getCellValue(cell, viewMode) {
-		switch(viewMode) {
+	function getCellValue(cell, snrType) {
+		switch(snrType) {
 			case 'first': return cell.firstSNR;
 			case 'last': return cell.lastSNR;
 			case 'min': return cell.minSNR;
@@ -937,9 +947,9 @@
 	}
 
 	// Helper function to get color based on view mode
-	function getColorForViewMode(value, viewMode, dataMin, dataMax) {
+	function getColorForsnrType(value, snrType, dataMin, dataMax) {
 		// For SNR-based views, use your existing color scale
-		if (['avg', 'first', 'last', 'min', 'max'].includes(viewMode)) {
+		if (['avg', 'first', 'last', 'min', 'max'].includes(snrType)) {
 			return getColorForSNR(value);
 		}
 		
@@ -1288,32 +1298,61 @@
         
         return niceInterval;
     }
+	function renderAndPreview() {
+		// Draw the full-resolution content
+		drawALL();
+
+		// Set the preview canvas resolution
+		previewCanvas.width = 800;
+		previewCanvas.height = 450;
+
+		// Draw the main canvas scaled down to preview size
+		previewCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 800, 450);
+
+		// Show the preview container
+		previewContainer.style.display = 'block';
+	}
 
     // =============================================
     // 6. EVENT HANDLERS
     // =============================================
 
-    aggregateBtn.addEventListener('click', function() {
-        SresolutionSelect.disabled = true; // Lock sampling resolution after aggregation starts
-		['yMin', 'yMax', 'xMin', 'xMax'].forEach(id => {
-			document.getElementById(id).disabled = true;
-		});
-        aggregateData();
+    aggregateBtn.addEventListener('click', async function() {
+        await aggregateData();
+		renderAndPreview();
     });
 	
 	renderBtn.addEventListener('click', function() {
-        drawALL();
-        
-        // Create preview image (800x450)
-        previewCanvas.width = 800;
-        previewCanvas.height = 450;
-        
-        // Draw the full resolution canvas scaled down to preview size
-        previewCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 800, 450);
-        
-        // Show the preview container
-        previewContainer.style.display = 'block';
+		renderAndPreview();
     });
+	
+	// Render and Preview auto after changes
+	PresolutionSelect.addEventListener('change', function() {
+		renderAndPreview();
+	});
+	
+	// SNR type
+	snrTypeSelect.addEventListener('change', function() {
+		snrType = this.value;
+		renderAndPreview();
+	});
+	snrMinInput.addEventListener('input', function() {
+		snrMin = this.value;
+		renderAndPreview();
+	});
+	snrMaxInput.addEventListener('input', function() {
+		snrMax = this.value;
+		renderAndPreview();
+	});
+	
+	document.getElementById('densityEnabled').addEventListener('change', function() {
+        densityEnabled = this.checked;
+		renderAndPreview();
+    });	
+
+	colorSchemeSelect.addEventListener('change', function() {
+		renderAndPreview();
+	});
 
 	viewBtn.onclick = function() {
 		drawALL();
@@ -1357,17 +1396,10 @@
         
         // Create download link
         const link = document.createElement('a');
-        link.download = 'snr-plot-' + new Date().toISOString().slice(0, 10) + '.png';
+        link.download = 'snr-az-alt-plot-' + new Date().toISOString().slice(0, 10) + '.png';
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
     });
-
-    document.getElementById('densityEnabled').addEventListener('change', function() {
-        densityEnabled = this.checked;
-//        if (isDataAggregated) {
-//            drawALL();
-//        }
-    });	
 
     // Close modal when clicking [X]
     span.onclick = function() {
