@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.02 - With Aggregation/Rendering Separation -->
+<!-- Ver.3.00 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -206,6 +206,22 @@
         z-index: 1001;
     }
     
+    /* Preview container styles */
+    #preview-container {
+        margin: 20px auto;
+        max-width: 800px;
+        background-color: #1e1e1e;
+        padding: 10px;
+        border-radius: 8px;
+        display: none; /* Initially hidden */
+    }
+    
+    #preview-canvas {
+        width: 800px;
+        height: 450px;
+        background-color: #121212;
+    }
+    
     /* ===== RESPONSIVE ADJUSTMENTS ===== */
     @media (max-width: 550px) {
         .los-controls-grid {
@@ -218,6 +234,17 @@
         
         .controls-row {
             flex-direction: column;
+        }
+        
+        #preview-container {
+            width: 100%;
+            padding: 5px;
+        }
+        
+        #preview-canvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16/9;
         }
     }
 </style>
@@ -392,15 +419,21 @@
 		<div class="control-group control-group-flex">
                 <button id="viewBtn">View</button>
         </div>
+        <div class="control-group control-group-flex">
+                <button id="downloadBtn">Download PNG</button>
+        </div>
     </div>
 </div> 
 
+<!-- Preview container -->
+<div id="preview-container">
+    <canvas id="preview-canvas"></canvas>
+</div>
 
-
-    <div id="imageModal" class="modal">
-        <span class="modal-close">&times;</span>
-        <img class="modal-content" id="modalImage">
-    </div>
+<div id="imageModal" class="modal">
+    <span class="modal-close">&times;</span>
+    <img class="modal-content" id="modalImage">
+</div>
 
 <script>
     // =============================================
@@ -485,7 +518,7 @@
     const aggregateBtn = document.getElementById('aggregateBtn');
     const renderBtn = document.getElementById('renderBtn'); 
     const viewBtn = document.getElementById('viewBtn');
-    const downloadBtn = document.getElementById('downloadBtn'); // to change
+    const downloadBtn = document.getElementById('downloadBtn');
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImage');
     const span = document.querySelector('.modal-close');
@@ -494,6 +527,9 @@
     const progressBar = document.getElementById('progress-bar');
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
+    const previewCanvas = document.getElementById('preview-canvas');
+    const previewCtx = previewCanvas.getContext('2d');
+    const previewContainer = document.getElementById('preview-container');
     const xMinInput = document.getElementById('xMin');
     const xMaxInput = document.getElementById('xMax');
     const yMinInput = document.getElementById('yMin');
@@ -555,6 +591,7 @@
             aggregateBtn.disabled = true;
 			renderBtn.disabled = false;
 			viewBtn.disabled = false;
+            downloadBtn.disabled = false;
             progressDiv.style.display = 'none';
         }
     }
@@ -1264,6 +1301,20 @@
         aggregateData();
     });
 	
+	renderBtn.addEventListener('click', function() {
+        drawALL();
+        
+        // Create preview image (800x450)
+        previewCanvas.width = 800;
+        previewCanvas.height = 450;
+        
+        // Draw the full resolution canvas scaled down to preview size
+        previewCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 800, 450);
+        
+        // Show the preview container
+        previewContainer.style.display = 'block';
+    });
+
 	viewBtn.onclick = function() {
 		drawALL();
 		modal.style.display = "block";
@@ -1285,20 +1336,38 @@
         document.body.style.overflow = "hidden";
 	};
 
+    downloadBtn.addEventListener('click', function() {
+        if (!isDataAggregated) {
+            statusDiv.textContent = "No data to download - please aggregate and render first!";
+            return;
+        }
+        
+        // Create a temporary canvas with background
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Fill with background color
+        tempCtx.fillStyle = '#121212';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Draw the heatmap
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.download = 'snr-plot-' + new Date().toISOString().slice(0, 10) + '.png';
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
+    });
+
     document.getElementById('densityEnabled').addEventListener('change', function() {
         densityEnabled = this.checked;
 //        if (isDataAggregated) {
 //            drawALL();
 //        }
     });	
-
-//    document.getElementById('colorScheme').addEventListener('change', function() {
-//        if (isDataAggregated) {
-//            drawALL();
-//        }
-//    });
-	
-	//document.getElementById('viewMode').addEventListener('change', drawALL);
 
     // Close modal when clicking [X]
     span.onclick = function() {
@@ -1327,8 +1396,7 @@
     SresolutionSelect.disabled = false; 
 	renderBtn.disabled = true;
 	viewBtn.disabled = true;
-//    viewBtn.disabled = true; 
-//    downloadBtn.disabled = true; 
+    downloadBtn.disabled = true;
     statusDiv.textContent = "Select settings and click Aggregate Data";
 </script>
 </body>
