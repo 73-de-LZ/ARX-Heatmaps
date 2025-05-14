@@ -7,8 +7,8 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 <div style="display: flex; flex-wrap: wrap;">
     <img src="/Example_plots/SNR-ALT_AZ (1).png" alt="SNR-ALT_AZ 1" width="200" style="margin: 10px;">
     <img src="/Example_plots/SNR-ALT_AZ (2).png" alt="SNR-ALT_AZ 2" width="200" style="margin: 10px;">
+    <img src="/Example_plots/snr-az-alt-plot-2025-05-14.png" alt="NEW AZ ALT Counts" width="200" style="margin: 10px;">
     <img src="/Example_plots/SNR-ALT_AZ (3).png" alt="SNR-ALT_AZ 3" width="200" style="margin: 10px;">
-    <img src="/Example_plots/SNR-ALT_AZ (4).png" alt="SNR-ALT_AZ 4" width="200" style="margin: 10px;">
     <img src="/Example_plots/SNR-ALT_AZ (5).png" alt="SNR-ALT_AZ 5" width="200" style="margin: 10px;">
     <img src="/Example_plots/SNR-ALT_DIST (1).png" alt="SNR-ALT_DIST 1" width="200" style="margin: 10px;">
     <img src="/Example_plots/SNR-ALT_DIST (2).png" alt="SNR-ALT_DIST 2" width="200" style="margin: 10px;">
