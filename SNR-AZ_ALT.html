@@ -446,7 +446,7 @@
 			<div class="control-group control-group-flex">
 				<label class="range-label">Density Min Brightness:</label>
 				<div class="range-inputs">
-					<input type="number" id="densityMinBrightness" placeholder="Min" value="0" min="0" max="100" step="1">
+					<input type="number" id="densityMinBrightness" placeholder="Min" value="0" min="0" max="100" step="10">
 					<span>%</span>
 				</div>
 			</div>
@@ -1133,7 +1133,7 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
 		drawColorBarLegend(ctxToUse, plotArea);
 		
 		// Draw density bar legend
-		drawDensityLegend(ctxToUse, plotArea);
+		drawDensityBarLegend(ctxToUse, plotArea);
 		
 		// Draw horizon curves if enabled
 		if (losEnabled.checked || radioHorizonEnabled.checked) {
@@ -1303,7 +1303,11 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
         ctx.fillStyle = '#aaa';
         ctx.font = '14px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('SNR (dB)', barX + barWidth / 2, barY - 8);
+		let barText = 'SNR (dB)';
+		if (snrType == 'count') {
+		    barText = 'Counts per Point';
+		}
+        ctx.fillText(barText, barX + barWidth / 2, barY - 8);
         
         // Add tick marks and labels
         const tickCount = 7;
@@ -1322,7 +1326,7 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
         }
     }
 
-    function drawDensityLegend(ctx, plotArea) {
+    function drawDensityBarLegend(ctx, plotArea) {
         const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
         
         const barHeight = 20;
