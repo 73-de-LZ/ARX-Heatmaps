@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.18 - With Aggregation/Rendering Separation -->
+<!-- Ver.3.20 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -32,6 +32,7 @@
         gap: 10px;
         width: 100%;
         justify-content: center;
+		margin-bottom: 10px;
     }
 
     /* ===== CONTROL GROUPS ===== */
@@ -170,7 +171,22 @@
         border-radius: 4px;
         background-color: #1e1e1e;
     }
-    
+	
+	/* ===== DENSITY CONTROLS ===== */
+	#density-controls-container {
+		transition: opacity 0.2s ease;
+	}
+
+	#density-controls-container input:disabled {
+		background-color: #1a1a1a;
+		color: #666;
+		border-color: #333;
+	}
+
+	#density-controls-container:has(input:disabled) .range-label {
+		color: #666;
+	}
+	
     .modal {
         display: none;
         position: fixed;
@@ -307,11 +323,11 @@
 </div>
 
 <!-- Status and progressbar lines -->
+<div id="status-message">Ready to aggregate data...</div>
+<canvas id="plotCanvas" style="display: none;"></canvas>
 <div id="progress-container">
 	<div id="progress-bar"></div>
 </div>
-<div id="status-message">Ready to aggregate data...</div>
-<canvas id="plotCanvas" style="display: none;"></canvas>
 
 <!-- LOS CONTROLS -->
 <div id="los-controls-container" style="display: none;">
@@ -414,7 +430,7 @@
         </div>
         
         <!-- Button placed here in the same row -->
-        <div class="control-group control-group-flex">
+        <div class="control-group control-group-flex" style="display: none;">
                 <button id="renderBtn">Render</button>
         </div>
 		<div class="control-group control-group-flex">
@@ -424,6 +440,34 @@
                 <button id="downloadBtn">Save PNG</button>
         </div>
     </div>
+	<div id="density-controls-container">
+		<div class="controls-row">
+			<!-- Density Min Brightness -->
+			<div class="control-group control-group-flex">
+				<label class="range-label">Density Min Brightness:</label>
+				<div class="range-inputs">
+					<input type="number" id="densityMinBrightness" placeholder="Min" value="0" min="0" max="100" step="1">
+					<span>%</span>
+				</div>
+			</div>
+			
+			<!-- Density Strength -->
+			<div class="control-group control-group-flex">
+				<label class="range-label">Density &gamma;-correction:</label>
+				<div class="range-inputs">
+					<input type="number" id="densityStrength" placeholder="Strength" value="0.7" min="0.1" max="10" step="0.1">
+				</div>
+			</div>
+			
+			<!-- Density Max -->
+			<div class="control-group control-group-flex">
+				<label class="range-label">Density Max Count:</label>
+				<div class="range-inputs">
+					<input type="number" id="densityMax" placeholder="Max" value="10" min="1" max="99" step="1">
+				</div>
+			</div>			
+		</div>
+	</div>
 </div> 
 
 <!-- Preview container -->
@@ -441,13 +485,10 @@
     // 1. CONFIGURATION AND GLOBALS
     // =============================================
     const METERS_TO_KM = 0.001;
-    const MIN_CELL_COUNT = 2;
-	const DENSITY_MIN_BRIGHTNESS = 0; // 0 to 1.0
-    const DENSITY_STRENGTH = 0.7; // 1.0 for Linear, can be 0 to 5.0++
-	const DENSITY_MAX = 10; // 1 to 99, maxCount to clamp cell.count
+    const MIN_CELL_COUNT = 2; // minimum count of occurence in that DP to Highlight it by Density (of rxed packets) 
 	
     const BATCH_SIZE = 20000;
-    const MAX_POINTS = 50000000;
+    const MAX_POINTS = 50000000; // limit of DP
     
     // Color schemes
     const COLOR_SCHEMES = {
@@ -515,11 +556,16 @@
     let aggregatedData = null;  // Stores data at sampling resolution
     let renderedData = null;    // Stores scaled data at plot resolution
     let maxCount = 1;
-    let densityEnabled = true;
+
     let MIN_SNR = 8;
     let MAX_SNR = 28;
     let lastUpdate = 0;
     let isDataAggregated = false;
+	
+	// Density vars
+	let DENSITY_MIN_BRIGHTNESS = 0;
+	let DENSITY_STRENGTH = 0.7; 
+	let DENSITY_MAX = 10; 
 
     // DOM elements
 	const SresolutionSelect = document.getElementById('Sresolution'); // sampling Resolution
@@ -557,8 +603,13 @@
 	const snrTypeSelect = document.getElementById('snrType'); // SNR type
     const snrMinInput = document.getElementById('snrMin');
     const snrMaxInput = document.getElementById('snrMax');
-	
 	const colorSchemeSelect = document.getElementById('colorScheme');
+	// Density
+	let densityEnabled = document.getElementById('densityEnabled').checked;
+	const densityControlsContainer = document.getElementById('density-controls-container');
+	const densityMinBrightnessInput = document.getElementById('densityMinBrightness');
+	const densityStrengthInput = document.getElementById('densityStrength');
+	const densityMaxInput = document.getElementById('densityMax');
 
 	const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImage');
@@ -781,8 +832,6 @@
 			// Draw overlays (no scaling needed)
 			ctx.drawImage(overlaysCanvas, 0, 0);
 			
-			statusDiv.textContent = "Plot rendering complete!";
-			
 		} catch (error) {
 			console.error('Plot rendering failed:', error);
 			statusDiv.textContent = `Error: ${error.message}`;
@@ -839,7 +888,7 @@
 				for (let srcX = srcXStart; srcX <= srcXEnd; srcX++) {
 					for (let srcY = srcYStart; srcY <= srcYEnd; srcY++) {
 						const cell = aggregatedData[srcX][srcY];
-						if (cell.count >= MIN_CELL_COUNT) {
+						if (cell.count >= 2) {  // Averaging of 1 point is omited as it is useless
 							sumSNR += cell.sumSNR;
 							count += cell.count;
 							minSNR = Math.min(minSNR, cell.minSNR);
@@ -872,24 +921,7 @@
 		const imageData = ctxToUse.createImageData(width, height);
 		const data = imageData.data;
 		
-		let dataMin = Infinity;
-		let dataMax = -Infinity;
-		
-		// First pass for count/sum modes
-		if (snrType === 'count' || snrType === 'sum') {
-			for (let x = 0; x < width; x++) {
-				for (let y = 0; y < height; y++) {
-					const cell = dataToUse[x][y];
-					if (cell.count >= MIN_CELL_COUNT) {
-						const value = getCellValue(cell, snrType);
-						dataMin = Math.min(dataMin, value);
-						dataMax = Math.max(dataMax, value);
-					}
-				}
-			}
-		}
-		
-		// Second pass: render using provided data
+		// render using provided data
 		for (let x = 0; x < width; x++) {
 			for (let y = 0; y < height; y++) {
 				const cell = dataToUse[x][y];
@@ -897,7 +929,7 @@
 				
 				if (cell.count >= MIN_CELL_COUNT) {
 					const value = getCellValue(cell, snrType);
-					let [r, g, b] = getColorForsnrType(value, snrType, dataMin, dataMax);
+					let [r, g, b] = getColorForSNR(value);
 					
 					if (densityEnabled) {
 						let brightness = 0;
@@ -1009,14 +1041,17 @@ function openDatabase() {
 					const x = Math.round(plotX + ((entry.azimuth - xMin) / (xMax - xMin)) * plotWidth);
 					const y = Math.round(xAxisY - ((entry.alt - yMin) / (yMax - yMin)) * plotHeight);
 					
-					// Ensure within SAMPLING resolution bounds (CHANGED from plotResolution)
+					// Ensure within SAMPLING resolution bounds
 					if (x >= 0 && x < samplingResolution.width && 
 						y >= 0 && y < samplingResolution.height) {
 						updateAggregatedData(aggregatedData, x, y, entry);
 						renderedCount++;
 					}
 					
-					if (renderedCount >= MAX_POINTS) break;
+					if (renderedCount >= MAX_POINTS) {
+						console.log("Reached the limit of MAX_POINTS:", MAX_POINTS,  " GD RX! , change the limit or spearate the logs by years.");
+						break;
+					}
 				}
 				
 				lastKey = entry.id;
@@ -1134,24 +1169,6 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
 			default: return cell.sumSNR / cell.count;
 		}
 	}
-
-	// Helper function to get color based on view mode
-	function getColorForsnrType(value, snrType, dataMin, dataMax) {
-		// For SNR-based views, use existing color scale
-		if (['avg', 'first', 'last', 'min', 'max'].includes(snrType)) {
-			return getColorForSNR(value);
-		}
-		
-		// For count/sum views, use a normalized grayscale
-		const normalized = (value - dataMin) / (dataMax - dataMin);
-		const intensity = Math.floor(normalized * 255);
-		return [intensity, intensity, intensity];
-	}
-	
-//    function getResolution() {
-//        const [width, height] = SresolutionSelect.value.split('x').map(Number);
-//        return { width, height };
-//    }
 	
     function getSamplingResolution() {
         const [width, height] = SresolutionSelect.value.split('x').map(Number);
@@ -1509,6 +1526,7 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
 	}
 	
 	function renderAndPreview() {
+		const renderStart = performance.now();
 		if (!isDataAggregated) return;
 		drawALL(); // Render the full quality plot first
 		// Set preview canvas size
@@ -1558,7 +1576,18 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
 		}
 		
 		previewContainer.style.display = 'block';
+		const renderTime = performance.now() - renderStart;
+		statusDiv.textContent = `Render and Draw complete in ${renderTime.toFixed(0)}ms !`;
 	}
+	
+	function updateDensityControlsState() {
+		const isEnabled = densityEnabled;
+		densityMinBrightnessInput.disabled = !isEnabled;
+		densityStrengthInput.disabled = !isEnabled;
+		densityMaxInput.disabled = !isEnabled;
+		densityControlsContainer.style.opacity = isEnabled ? '1' : '0.6';
+	}
+
 
     // =============================================
     // 6. EVENT HANDLERS
@@ -1581,21 +1610,46 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
 	// SNR type
 	snrTypeSelect.addEventListener('change', function() {
 		snrType = this.value;
+		// Auto-adjust SNR range when switching to sum/count modes
+		switch(snrType) {
+			case 'count':
+					snrMin = 1;    // COLD color for cells with at least 1 count
+					snrMax = 50;  // HOT color for 50 or more counts
+					snrMinInput.value = snrMin;
+					snrMaxInput.value = snrMax;
+				break;
+				
+			case 'sum':
+					snrMin = 20;    // COLD color for sum SNR <= 20
+					snrMax = 200;  // HOT color at sum SNR >= 200
+					snrMinInput.value = snrMin;
+					snrMaxInput.value = snrMax;
+				break;
+		}
 		renderAndPreview();
 	});
-	snrMinInput.addEventListener('input', function() {
+	snrMinInput.addEventListener('change', function() {
 		snrMin = this.value;
 		renderAndPreview();
 	});
-	snrMaxInput.addEventListener('input', function() {
+	snrMaxInput.addEventListener('change', function() {
 		snrMax = this.value;
 		renderAndPreview();
 	});
-	
+	// Add event listeners for the density control inputs
+	[densityMinBrightnessInput, densityStrengthInput, densityMaxInput].forEach(input => {
+		input.addEventListener('change', function() {
+		    DENSITY_MIN_BRIGHTNESS = parseFloat(densityMinBrightnessInput.value) / 100; // Convert % to 0-1.0
+			DENSITY_STRENGTH = parseFloat(densityStrengthInput.value);
+			DENSITY_MAX = parseInt(densityMaxInput.value);
+			renderAndPreview();
+		});
+    });
 	document.getElementById('densityEnabled').addEventListener('change', function() {
-        densityEnabled = this.checked;
+		densityEnabled = this.checked;
+		updateDensityControlsState();
 		renderAndPreview();
-    });	
+	});
 
 	colorSchemeSelect.addEventListener('change', function() {
 		renderAndPreview();
@@ -1678,7 +1732,10 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
         viewBtn.disabled = true;
         downloadBtn.disabled = true;
         statusDiv.textContent = "Select settings and click Aggregate Data";
-        
+        updateDensityControlsState();
+		densityMinBrightnessInput.value = DENSITY_MIN_BRIGHTNESS * 100; // Convert to percentage
+		densityStrengthInput.value = DENSITY_STRENGTH;
+		densityMaxInput.value = DENSITY_MAX;
         // Set initial resolutions
         samplingResolution = getSamplingResolution();
         plotResolution = getPlotResolution();
