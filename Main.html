@@ -123,7 +123,7 @@
             background-color: #6da6e8;
             color: black;
 		}
-		#ElAzBtn {
+		#AzElBtn {
             background-color: #6da6e8;
             color: black;
 		}
@@ -231,7 +231,7 @@
         <input type="number" id="limitInput" placeholder="Limit results" value="100" min="1">
 		<button id="AltDistBtn" disabled>SNR vs ALT-DIST</button>
 		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
-		<button id="ElAzBtn" disabled>SNR vs EL-AZ</button>
+		<button id="AzElBtn" disabled>SNR vs AZ-EL</button>
 	</div>
     
     <div class="progress-container" id="progressContainer" style="display: none;">
@@ -936,8 +936,8 @@ AltDistBtn.addEventListener('click', () => {
 AzAltBtn.addEventListener('click', () => {
     window.open('SNR-AZ_ALT.html', '_blank');
 });
-ElAzBtn.addEventListener('click', () => {
-    window.open('SNR-el_az.html', '_blank');
+AzElBtn.addEventListener('click', () => {
+    window.open('SNR-AZ_EL.html', '_blank');
 });
         
         // Process directory using File System Access API
@@ -1159,7 +1159,7 @@ async function processFiles(files, clearFirst) {
 				queryBtn.disabled = true;
 				AltDistBtn.disabled = false;  // Enable plot button immediately
 				AzAltBtn.disabled = false;
-				ElAzBtn.disabled = false;
+				AzElBtn.disabled = false;
 				serialSelect.disabled = false;
 				updateDbBtn.disabled = false;
 			} catch (e) {
