@@ -485,7 +485,7 @@
     // 1. CONFIGURATION AND GLOBALS
     // =============================================
     const METERS_TO_KM = 0.001;
-    const MIN_CELL_COUNT = 2; // minimum count of occurence in that DP to Highlight it by Density (of rxed packets) 
+    const MIN_CELL_COUNT = 1; // 2 or more to Filter DP with low density 
 	
     const BATCH_SIZE = 20000;
     const MAX_POINTS = 50000000; // limit of DP
@@ -888,7 +888,7 @@
 				for (let srcX = srcXStart; srcX <= srcXEnd; srcX++) {
 					for (let srcY = srcYStart; srcY <= srcYEnd; srcY++) {
 						const cell = aggregatedData[srcX][srcY];
-						if (cell.count >= 2) {  // Averaging of 1 point is omited as it is useless
+						if (cell.count >= 1) {  // if 2 can filter low density 
 							sumSNR += cell.sumSNR;
 							count += cell.count;
 							minSNR = Math.min(minSNR, cell.minSNR);
