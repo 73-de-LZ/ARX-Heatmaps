@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version 2.20LowMEM -->
+<!-- version 3.20LowMEM -->
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
@@ -119,7 +119,7 @@
 			background-color: #6da6e8;
 			color: black;
 		}
-		#AltAzBtn {
+		#AzAltBtn {
 			background-color: #6da6e8;
 			color: black;
 		}
@@ -231,7 +231,7 @@
 		</select>
 		<input type="number" id="limitInput" placeholder="Limit results" value="100" min="1" />
 		<button id="AltDistBtn" disabled>SNR vs ALT-DIST</button>
-		<button id="AltAzBtn" disabled>SNR vs ALT-AZ</button>
+		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
 		<button id="ElAzBtn" disabled>SNR vs EL-AZ</button>
 	</div>
 
@@ -919,7 +919,7 @@
 		AltDistBtn.addEventListener("click", () => {
 			window.open("SNR-alt_dist.html", "_blank");
 		});
-		AltAzBtn.addEventListener("click", () => {
+		AzAltBtn.addEventListener("click", () => {
 			window.open("SNR-alt_az.html", "_blank");
 		});
 		ElAzBtn.addEventListener("click", () => {
@@ -1139,7 +1139,7 @@
 				clearDbBtn.disabled = false;
 				queryBtn.disabled = true;
 				AltDistBtn.disabled = false; // Enable plot button immediately
-				AltAzBtn.disabled = false;
+				AzAltBtn.disabled = false;
 				ElAzBtn.disabled = false;
 				serialSelect.disabled = false;
 				updateDbBtn.disabled = false;
