@@ -394,7 +394,8 @@
                 </div>
         </div>
         <div class="control-group control-group-flex">
-                <label for="densityEnabled" class="control-label">Brightness by Density:</label>
+				<!-- &#9728; Brightness by Density (Counts) -->
+                <label for="densityEnabled" class="control-label">Highlight Density:</label>
                 <input type="checkbox" id="densityEnabled" checked>        
         </div>
         <div class="control-group control-group-flex">
@@ -441,7 +442,10 @@
     // =============================================
     const METERS_TO_KM = 0.001;
     const MIN_CELL_COUNT = 2;
-    const DENSITY_STRENGTH = 0.7;
+	const DENSITY_MIN_BRIGHTNESS = 0; // 0 to 1.0
+    const DENSITY_STRENGTH = 0.7; // 1.0 for Linear, can be 0 to 5.0++
+	const DENSITY_MAX = 10; // 1 to 99, maxCount to clamp cell.count
+	
     const BATCH_SIZE = 20000;
     const MAX_POINTS = 50000000;
     
@@ -638,49 +642,6 @@
                 reject(error);
             }
         });
-    }
-
-    async function processDatabaseRecords(db, params) {
-        const { xMin, xMax, yMin, yMax, totalCount, plotArea } = params;
-        const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
-        
-        let lastKey = null;
-        let processed = 0;
-        let renderedCount = 0;
-        lastUpdate = 0;
-        
-        // Process in batches
-        while (processed < totalCount && renderedCount < MAX_POINTS) {
-            const batch = await getRecordsBatch(db, lastKey, BATCH_SIZE);
-            if (batch.length === 0) break;
-            
-            for (let i = 0; i < batch.length; i++) {
-                const entry = batch[i];
-                if (isValidEntry(entry, xMin, xMax, yMin, yMax)) {
-                    // Calculate position in SAMPLING resolution grid
-                    const x = Math.round(plotX + ((entry.azimuth - xMin) / (xMax - xMin)) * plotWidth);
-                    const y = Math.round(xAxisY - ((entry.alt - yMin) / (yMax - yMin)) * plotHeight);
-                    
-                    // Ensure within SAMPLING resolution bounds
-                    if (x >= 0 && x < samplingResolution.width && 
-                        y >= 0 && y < samplingResolution.height) {
-                        updateAggregatedData(aggregatedData, x, y, entry);
-                        renderedCount++;
-                    }
-                    
-                    if (renderedCount >= MAX_POINTS) break;
-                }
-                
-                lastKey = entry.id;
-                processed++;
-            }
-            
-            updateProgress(processed, totalCount);
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
-        
-        maxCount = calculateMaxCount(aggregatedData);
-        return renderedCount;
     }
 	
 	    function updateAggregatedData(data, x, y, entry) {
@@ -903,7 +864,7 @@
 			}
 		}
 		
-		maxCount = calculateMaxCount(renderedData);
+//		maxCount = calculateMaxCount(renderedData);
 	}
 
 	function drawSNRPlot(ctxToUse, dataToUse, width, height) {
@@ -939,8 +900,13 @@
 					let [r, g, b] = getColorForsnrType(value, snrType, dataMin, dataMax);
 					
 					if (densityEnabled) {
-						const densityFactor = Math.pow(cell.count / maxCount, DENSITY_STRENGTH);
-						const brightness = 0.7 + 0.3 * densityFactor;
+						let brightness = 0;
+						if (cell.count > DENSITY_MAX) {
+							brightness = 1;
+						} else {
+							const densityFactor = Math.pow(cell.count / DENSITY_MAX, DENSITY_STRENGTH);
+							brightness = DENSITY_MIN_BRIGHTNESS + (1 - DENSITY_MIN_BRIGHTNESS) * densityFactor;
+						}
 						r = Math.min(255, r * brightness);
 						g = Math.min(255, g * brightness);
 						b = Math.min(255, b * brightness);
@@ -1022,48 +988,49 @@ function openDatabase() {
         });
     }
 	
-async function processDatabaseRecords(db, params) {
-    const { xMin, xMax, yMin, yMax, totalCount, plotArea } = params;
-    const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
-    
-    let lastKey = null;
-    let processed = 0;
-    let renderedCount = 0;
-    lastUpdate = 0;
-    
-    // Process in batches
-    while (processed < totalCount && renderedCount < MAX_POINTS) {
-        const batch = await getRecordsBatch(db, lastKey, BATCH_SIZE);
-        if (batch.length === 0) break;
-        
-        for (let i = 0; i < batch.length; i++) {
-            const entry = batch[i];
-            if (isValidEntry(entry, xMin, xMax, yMin, yMax)) {
-                // Calculate position in SAMPLING resolution grid
-                const x = Math.round(plotX + ((entry.azimuth - xMin) / (xMax - xMin)) * plotWidth);
-                const y = Math.round(xAxisY - ((entry.alt - yMin) / (yMax - yMin)) * plotHeight);
-                
-                // Ensure within SAMPLING resolution bounds (CHANGED from plotResolution)
-                if (x >= 0 && x < samplingResolution.width && 
-                    y >= 0 && y < samplingResolution.height) {
-                    updateAggregatedData(aggregatedData, x, y, entry);
-                    renderedCount++;
-                }
-                
-                if (renderedCount >= MAX_POINTS) break;
-            }
-            
-            lastKey = entry.id;
-            processed++;
-        }
-        
-        updateProgress(processed, totalCount);
-        await new Promise(resolve => setTimeout(resolve, 0));
-    }
-    
-    maxCount = calculateMaxCount(aggregatedData);
-    return renderedCount;
-}
+	async function processDatabaseRecords(db, params) {
+		const { xMin, xMax, yMin, yMax, totalCount, plotArea } = params;
+		const { plotX, plotY, plotWidth, plotHeight, xAxisY } = plotArea;
+		
+		let lastKey = null;
+		let processed = 0;
+		let renderedCount = 0;
+		lastUpdate = 0;
+		
+		// Process in batches
+		while (processed < totalCount && renderedCount < MAX_POINTS) {
+			const batch = await getRecordsBatch(db, lastKey, BATCH_SIZE);
+			if (batch.length === 0) break;
+			
+			for (let i = 0; i < batch.length; i++) {
+				const entry = batch[i];
+				if (isValidEntry(entry, xMin, xMax, yMin, yMax)) {
+					// Calculate position in SAMPLING resolution grid
+					const x = Math.round(plotX + ((entry.azimuth - xMin) / (xMax - xMin)) * plotWidth);
+					const y = Math.round(xAxisY - ((entry.alt - yMin) / (yMax - yMin)) * plotHeight);
+					
+					// Ensure within SAMPLING resolution bounds (CHANGED from plotResolution)
+					if (x >= 0 && x < samplingResolution.width && 
+						y >= 0 && y < samplingResolution.height) {
+						updateAggregatedData(aggregatedData, x, y, entry);
+						renderedCount++;
+					}
+					
+					if (renderedCount >= MAX_POINTS) break;
+				}
+				
+				lastKey = entry.id;
+				processed++;
+			}
+			
+			updateProgress(processed, totalCount);
+			await new Promise(resolve => setTimeout(resolve, 0));
+		}
+		
+		maxCount = calculateMaxCount(aggregatedData); // used for normalisation of Brightness by Density, not used anymore
+		console.log("maxCount:", maxCount, "Data Points:", renderedCount);
+		return renderedCount;
+	}
 	
 	function calculateMaxCount(data) {
         let max = 1;
@@ -1348,8 +1315,18 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
         
         // Only draw if density is enabled
         if (densityEnabled) {
+		    // Labels
+			ctx.fillStyle = '#aaa';
+			ctx.font = '12px Arial';
+			ctx.textAlign = 'center';
+			ctx.fillText('Density', barX + barWidth/2, barY - 8);
+			ctx.textAlign = 'right';
+            ctx.fillText('0', barX + 6, barY - 8);
+            ctx.textAlign = 'left';
+            ctx.fillText(DENSITY_MAX, barX + barWidth - 12, barY - 8);
+			// Density bar
             const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
-            gradient.addColorStop(0, 'rgba(255,255,255,0)');
+            gradient.addColorStop(0, `rgba(255,255,255,${DENSITY_MIN_BRIGHTNESS})`);
             gradient.addColorStop(1, 'rgba(255,255,255,1)');
             
             ctx.fillStyle = gradient;
@@ -1358,31 +1335,6 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
             ctx.strokeStyle = '#aaa';
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
-        } else {
-            // Show disabled state
-            ctx.fillStyle = '#333';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-            
-            ctx.strokeStyle = '#aaa';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
-            
-            ctx.fillStyle = '#aaa';
-            ctx.textAlign = 'center';
-            ctx.fillText('OFF', barX + barWidth/2, barY + barHeight/2 + 2);
-        }
-        
-        // Labels
-        ctx.fillStyle = '#aaa';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Density', barX + barWidth/2, barY - 8);
-        
-        if (densityEnabled) {
-            ctx.textAlign = 'right';
-            ctx.fillText('Low', barX - 5, barY + barHeight/2);
-            ctx.textAlign = 'left';
-            ctx.fillText('High', barX + barWidth + 5, barY + barHeight/2);
         }
     }
 
