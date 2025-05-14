@@ -1701,7 +1701,7 @@ function isValidEntry(entry, xMin, xMax, yMin, yMax) {
         
         // Create download link
         const link = document.createElement('a');
-        link.download = 'snr-az-alt-plot-' + new Date().toISOString().slice(0, 10) + '.png';
+        link.download = 'SNR-Az-Alt-plot-' + new Date().toISOString().slice(0, 10) + '.png';
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
     });
