@@ -1,7 +1,7 @@
 # ARX Heatmaps – Visualization Tool for RadiosondeAutoRX Logs
 
 This HTML/JavaScript tool helps you visualize data from your **Radiosonde Auto RX** logs.  
-The `main.html` file creates or updates a local **IndexedDB** in your browser, which stores the data for plotting.
+The `Main.html` file creates or updates a local **IndexedDB** in your browser, which stores the data for plotting.
 
 ## Example plots:
 <div style="display: flex; flex-wrap: wrap;">
@@ -29,7 +29,7 @@ The `main.html` file creates or updates a local **IndexedDB** in your browser, w
 
 ### 2. Update the Database
 
-- Open `main.html` in your browser or `Main_LowMEM.html` if you have a large number of log files (e.g., over 1,000).
+- Open `Main.html` in your browser or `Main_LowMEM.html` if you have a large number of log files (e.g., over 1,000).
 - Click **Update Database** to process and store the data.
 - You can repeat this step anytime to add new logs.
 
