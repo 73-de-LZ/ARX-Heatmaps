@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version 2.20 -->
+<!-- version 3.20 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -230,7 +230,7 @@
         </select>
         <input type="number" id="limitInput" placeholder="Limit results" value="100" min="1">
 		<button id="AltDistBtn" disabled>SNR vs ALT-DIST</button>
-		<button id="AltAzBtn" disabled>SNR vs ALT-AZ</button>
+		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
 		<button id="ElAzBtn" disabled>SNR vs EL-AZ</button>
 	</div>
     
@@ -933,8 +933,8 @@ queryBtn.addEventListener('click', async () => {
 AltDistBtn.addEventListener('click', () => {
     window.open('SNR-alt_dist.html', '_blank');
 });
-AltAzBtn.addEventListener('click', () => {
-    window.open('SNR-alt_az.html', '_blank');
+AzAltBtn.addEventListener('click', () => {
+    window.open('SNR-AZ_ALT.html', '_blank');
 });
 ElAzBtn.addEventListener('click', () => {
     window.open('SNR-el_az.html', '_blank');
