@@ -115,7 +115,7 @@
             background-color: #018786;
         }
 		
-		#AltDistBtn {
+		#DistAltBtn {
             background-color: #6da6e8;
             color: black;
 		}
@@ -229,7 +229,7 @@
             <option value="">All Serials</option>
         </select>
         <input type="number" id="limitInput" placeholder="Limit results" value="100" min="1">
-		<button id="AltDistBtn" disabled>SNR vs ALT-DIST</button>
+		<button id="DistAltBtn" disabled>SNR vs ALT-DIST</button>
 		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
 		<button id="AzElBtn" disabled>SNR vs AZ-EL</button>
 	</div>
@@ -930,8 +930,8 @@ queryBtn.addEventListener('click', async () => {
         queryBtn.disabled = false;
     }
 });
-AltDistBtn.addEventListener('click', () => {
-    window.open('SNR-alt_dist.html', '_blank');
+DistAltBtn.addEventListener('click', () => {
+    window.open('SNR-DIST_ALT.html', '_blank');
 });
 AzAltBtn.addEventListener('click', () => {
     window.open('SNR-AZ_ALT.html', '_blank');
@@ -1157,7 +1157,7 @@ async function processFiles(files, clearFirst) {
 				await initDB();
 				clearDbBtn.disabled = false;
 				queryBtn.disabled = true;
-				AltDistBtn.disabled = false;  // Enable plot button immediately
+				DistAltBtn.disabled = false;  // Enable plot button immediately
 				AzAltBtn.disabled = false;
 				AzElBtn.disabled = false;
 				serialSelect.disabled = false;
