@@ -7,132 +7,156 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
             color: #333;
         }
-        h1 {
-            text-align: center;
-            margin-top: 20px;
-        }
-        h2 {
-            color: #2e8b57;
-        }
-        p {
-            margin: 10px;
-            line-height: 1.6;
-        }
-        .section {
-            margin: 20px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
+		h1, h2 {
+		  color: #00539C;
+		}
+		h1 {
+		  font-size: 2em;
+		}
+		h2 {
+		  margin-top: 1.5em;
+		}
+		code {
+		  background: #eee;
+		  padding: 2px 4px;
+		  font-size: 0.95em;
+		  border-radius: 3px;
+		}
         details {
-            margin-top: 10px;
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
-        details summary {
-            cursor: pointer;
+        summary {
             font-weight: bold;
+            cursor: pointer;
         }
-        details small {
-            font-size: 14px;
+        small {
+            font-size: 0.9em;
             color: #555;
         }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+		.note {
+		  background: #fff3cd;
+		  border-left: 4px solid #ffc107;
+		  padding: 10px 15px;
+		  margin: 1em 0;
+		}
     </style>
 </head>
 <body>
-
     <h1>ARX Heatmaps – Visualization Tool for RadiosondeAutoRX Logs</h1>
+    
+    <p>This HTML/JavaScript tool helps you visualize data from your <strong>Radiosonde Auto RX</strong> logs.<br>
+    The <code>Main.html</code> file creates or updates a local <strong>IndexedDB</strong> in your browser, which stores the data for plotting.</p>
 
-    <div class="section">
-        <p>This HTML/JavaScript tool helps you visualize data from your <strong>Radiosonde Auto RX</strong> logs.  
-        The <code>main.html</code> file creates or updates a local <strong>IndexedDB</strong> in your browser, which stores the data for plotting.</p>
+    <h2>📌 How to Use</h2>
 
-        <h2>📌 How to Use</h2>
+    <h3>1. Prepare Your Data</h3>
 
-        <h3>1. Prepare Your Data</h3>
-        <ul>
-            <li>Copy the log files from your <code>RadiosondeAutoRX</code> folder into a local folder.</li>
-            <li>Include a copy of the <code>station.cfg</code> file in the same folder.</li>
-            <li>Copy all .html files from this repository to a different local folder on your PC.</li>
-        </ul>
+    <ul>
+        <li>Copy the log files from your <code>RadiosondeAutoRX</code> folder into a local folder.</li>
+        <li>Include a copy of the <code>station.cfg</code> file in the same folder.</li>
+        <li>Copy all .html files from this repository to a different local folder on your PC.</li>
+    </ul>
 
-        <h3>2. Update the Database</h3>
-        <ul>
-            <li>Open <code>main.html</code> in your browser or <code>Main_LowMEM.html</code> if you have a large number of log files (e.g., over 2,000).</li>
-            <li>Click <strong>Update Database</strong> to process and store the data.</li>
-            <li>You can repeat this step anytime to add new logs.</li>
-        </ul>
+    <h3>2. Update the Database</h3>
 
-        <h3>⚠️ Troubleshooting Tips</h3>
+    <ul>
+        <li>Open <code>Main.html</code> in your browser or <code>Main_LowMEM.html</code> if you have a large number of log files (e.g., over 1,000).</li>
+        <li>Click <strong>Update Database</strong> to process and store the data.</li>
+        <li>You can repeat this step anytime to add new logs.</li>
+    </ul>
 
-        <details>
-            <summary><strong>⚠️ Having performance issues or crashes during database update?</strong></summary>
-            <small>
-                If you experience browser crashes during database updates, try the following:
-                <ul>
-                    <li>Use the Low Memory version: <code>Main_LowMEM.html</code> (uses <code>openCursor()</code> instead of <code>getAll()</code>).</li>
-                    <li>Or process logs in smaller batches:
-                        <ul>
-                            <li>Copy a portion of the logs.</li>
-                            <li>Open <code>main.html</code> and update the database.</li>
-                            <li>Add the next batch and repeat the process until all logs are imported.</li>
-                        </ul>
-                    </li>
-                </ul>
-            </small>
-        </details>
+    <details>
+        <summary><strong>* Firefox users:</strong></summary>
+        <small>
+            <p>You will need to host the .html files on a local server. To run a simple server:</p>
+            <pre>cd /path/to/yourDirectory/with_html_files/
+python3 -m http.server 8000</pre>
+            <p>Open .html files from:<br>
+            http://localhost:8000</p>
+            <p><strong>Windows and Firefox - you will need Python to be installed.</strong></p>
+        </small>
+    </details>
 
-        <details>
-            <summary><strong>⚠️ Manually delete the IndexedDB if issues persist</strong></summary>
-            <small>
-                Sometimes the browser’s local database can get stuck or corrupted. Here's how to clear it:
-                <h4>Chrome / Chromium / Edge</h4>
-                <ul>
-                    <li>Open Developer Tools (F12 or Ctrl+Shift+I)</li>
-                    <li>Go to the <strong>Application</strong> tab</li>
-                    <li>In the left sidebar under <strong>Storage</strong>, expand <strong>IndexedDB</strong></li>
-                    <li>Right-click on <code>RadiosondeDB</code> and choose <strong>Delete database</strong></li>
-                </ul>
+    <h3>⚠️ Troubleshooting Tips</h3>
 
-                <h4>Firefox</h4>
-                <ul>
-                    <li>Open Developer Tools (F12)</li>
-                    <li>Go to the <strong>Storage</strong> tab</li>
-                    <li>Expand <strong>IndexedDB</strong> in the sidebar</li>
-                    <li>Right-click on <code>RadiosondeDB</code> and choose <strong>Delete All</strong></li>
-                </ul>
+    <details>
+        <summary><strong>⚠️ Having performance issues or crashes during database update?</strong></summary>
+        <small>
+            <p>If you experience browser crashes during database updates, try the following:</p>
+            <ul>
+                <li>Use the Low Memory version: <code>Main_LowMEM.html</code> (uses <code>openCursor()</code> instead of <code>getAll()</code>).</li>
+                <li>Or process logs in smaller batches:
+                    <ul>
+                        <li>Copy a portion of the logs, less than 1000 files.</li>
+                        <li>Open <code>main.html</code> and update the database.</li>
+                        <li>When DB is updated remove these log files.</li>
+                        <li>Add the next batch and repeat the process until all logs are imported.</li>
+                    </ul>
+                </li>
+            </ul>
+        </small>
+    </details>
 
-                <h4>Safari (macOS)</h4>
-                <ul>
-                    <li>Enable the <strong>Develop</strong> menu in Safari preferences (Advanced > Show Develop menu)</li>
-                    <li>Open Web Inspector (Cmd+Opt+I)</li>
-                    <li>Go to the <strong>Storage</strong> tab</li>
-                    <li>Expand <strong>IndexedDB</strong>, right-click the database and choose <strong>Delete</strong></li>
-                </ul>
-            </small>
-        </details>
+    <details>
+        <summary><strong>⚠️ Manually delete the IndexedDB if issues persist</strong></summary>
+        <small>
+            <p>Sometimes the browser's local database can get stuck or corrupted. Here's how to clear it:</p>
 
-        <h3>3. Generate and View Plots</h3>
-        <ul>
-            <li>Choose the desired plot type.</li>
-            <li>Change the required parameters.</li>
-            <li>Visualize and explore your data!</li>
-        </ul>
-    </div>
+            <h4>Chrome / Chromium / Edge</h4>
+            <ul>
+                <li>Open Developer Tools (F12 or Ctrl+Shift+I)</li>
+                <li>Go to the <strong>Application</strong> tab</li>
+                <li>In the left sidebar under <strong>Storage</strong>, expand <strong>IndexedDB</strong></li>
+                <li>Right-click on <code>RadiosondeDB</code> and choose <strong>Delete database</strong></li>
+            </ul>
 
-    <div class="section">
-        <h2>💡 Contribute</h2>
-        <p>
-          Have ideas for new plots or features? Contribute on GitHub:
-          <a class="link" href="https://github.com/73-de-LZ/ARX-Heatmaps" target="_blank">
+            <h4>Firefox</h4>
+            <ul>
+                <li>Open Developer Tools (F12)</li>
+                <li>Go to the <strong>Storage</strong> tab</li>
+                <li>Expand <strong>IndexedDB</strong> in the sidebar</li>
+                <li>Right-click on <code>RadiosondeDB</code> and choose <strong>Delete All</strong></li>
+            </ul>
+
+            <h4>Safari (macOS)</h4>
+            <ul>
+                <li>Enable the <strong>Develop</strong> menu in Safari preferences (Advanced > Show Develop menu)</li>
+                <li>Open Web Inspector (Cmd+Opt+I)</li>
+                <li>Go to the <strong>Storage</strong> tab</li>
+                <li>Expand <strong>IndexedDB</strong>, right-click the database and choose <strong>Delete</strong></li>
+            </ul>
+        </small>
+    </details>
+
+    <h3>3. Generate and View Plots</h3>
+
+    <ul>
+        <li>Choose the desired plot type.</li>
+        <li>Change the required parameters.</li>
+        <li>Visualize and explore your data!</li>
+    </ul>
+
+    <h2>💡 Contribute</h2>
+
+    <p>Want to add new plots or features?<br>
+    Contributions or suggestions are welcome on GitHub:<br>
+	<a class="link" href="https://github.com/73-de-LZ/ARX-Heatmaps" target="_blank">
           🔗 https://github.com/73-de-LZ/ARX-Heatmaps
-          </a>
-        </p>
-    </div>
-
+          </a></p>
 </body>
 </html>
