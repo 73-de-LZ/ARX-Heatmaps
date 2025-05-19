@@ -41,6 +41,7 @@
         border-radius: 6px;
         padding: 5px;
 		justify-content: center;
+		transition: opacity 0.2s ease;
     }
 
     .control-group-flex {
@@ -276,7 +277,7 @@
     <div class="controls-row">
         <!-- Sampling Resolution -->
         <div class="control-group control-group-flex">
-            <label for="Sresolution" class="control-label">Sampling for:</label>
+            <label for="Sresolution" class="control-label">Resolution:</label>
             <select id="Sresolution">
                 <option value="1280x720">HD (1280×720)</option>
                 <option value="1366x768">WXGA (1366×768)</option>
@@ -390,33 +391,33 @@
                     <option value="3840x2160">4K (3840×2160)</option>
                 </select>
         </div>
-        <!-- Altitude Range -->
+        <!-- Color mapping -->
         <div class="control-group control-group-flex">
+				<label for="snrType" class="control-label">Color mapping by:</label>
                 <select id="snrType">
-                    <option value="min">Minimum SNR</option>
-                    <option value="avg" selected>Average SNR</option>
-                    <option value="max">Maximum SNR</option>
-                    <option value="first">First SNR</option>
-                    <option value="last">Last SNR</option>
-                    <option value="sum">Sum SNR</option>
+                    <option value="min">Minimum SNR (dB):</option>
+                    <option value="avg" selected>Average SNR (dB):</option>
+                    <option value="max">Maximum SNR (dB):</option>
+                    <option value="first">First SNR (dB):</option>
+                    <option value="last">Last SNR (dB):</option>
+                    <option value="sum">Sum SNR (dB):</option>
                     <option value="count">Counts per Point</option>
+					<option value="alt">Average Altitude (km):</option>
+					<option value="alt_min">Minimum Altitude (km):</option>
+					<option value="alt_max">Maximum Altitude (km):</option>
                 </select>
         </div>
-		<!-- SNR Range -->
+		<!-- Values for Color Range -->
         <div class="control-group control-group-flex">
-                <label class="range-label">SNR:</label>
+                <label class="range-label">From:</label>
                 <div class="range-inputs">
                     <input type="number" id="snrMin" placeholder="Min" value="8" step="1">
                     <span>to</span>
                     <input type="number" id="snrMax" placeholder="Max" value="28" step="1">
-                    <span>dB</span>
+                    <span> </span>
                 </div>
         </div>
-        <div class="control-group control-group-flex">
-				<!-- &#9728; Brightness by Density (Counts) -->
-                <label for="densityEnabled" class="control-label">Highlight Density:</label>
-                <input type="checkbox" id="densityEnabled" checked>        
-        </div>
+
         <div class="control-group control-group-flex">
                 <!-- Color Scheme -->
                 <label for="colorScheme" class="control-label">Color Scheme:</label>
@@ -468,6 +469,11 @@
 				<div class="range-inputs">
 					<input type="number" id="densityMax" placeholder="Max" value="10" min="1" max="99" step="1">
 				</div>
+			</div>
+			<div class="control-group control-group-flex no-dim">
+				<!-- &#9728; Brightness by Density (Counts) -->
+                <label for="densityEnabled" class="control-label">Highlight Density:</label>
+                <input type="checkbox" id="densityEnabled" checked>        
 			</div>			
 		</div>
 	</div>
@@ -692,23 +698,42 @@
 		});
 	}
 	
-	    function updateAggregatedData(data, x, y, entry) {
-        const cell = data[x][y];
+function updateAggregatedData(data, x, y, entry) {
+    const cell = data[x][y];
+    
+    // Initialize cell if first entry
+    if (cell.count === 0) {
+        cell.sumSNR = 0;
+        cell.minSNR = Infinity;
+        cell.maxSNR = -Infinity;
+        cell.firstSNR = null;
+        cell.lastSNR = null;
         
-        // Update basic statistics
-        cell.sumSNR += entry.snr;
-        cell.count++;
-        
-        // Update min/max
-        if (entry.snr < cell.minSNR) cell.minSNR = entry.snr;
-        if (entry.snr > cell.maxSNR) cell.maxSNR = entry.snr;
-        
-        // Update first/last
-        if (cell.firstSNR === null) {
-            cell.firstSNR = entry.snr;
-        }
-        cell.lastSNR = entry.snr;
+        // Initialize altitude tracking
+        cell.sumAlt = 0;
+        cell.minAlt = Infinity;  // Minimum altitude (meters)
+        cell.maxAlt = -Infinity; // Maximum altitude (meters)
+        cell.avgAlt = 0;         // Average altitude (meters)
     }
+    
+    // Update SNR statistics
+    cell.sumSNR += entry.snr;
+    cell.count++;
+    
+    // Update SNR min/max
+    cell.minSNR = Math.min(cell.minSNR, entry.snr);
+    cell.maxSNR = Math.max(cell.maxSNR, entry.snr);
+    
+    // Update first/last SNR
+    if (cell.firstSNR === null) cell.firstSNR = entry.snr;
+    cell.lastSNR = entry.snr;
+    
+    // Update altitude statistics (all in meters)
+    cell.sumAlt += entry.alt;
+    cell.minAlt = Math.min(cell.minAlt, entry.alt);
+    cell.maxAlt = Math.max(cell.maxAlt, entry.alt);
+    cell.avgAlt = cell.sumAlt / cell.count;
+}
 
     // =============================================
     // 3. RENDERING FUNCTIONS
@@ -1164,7 +1189,13 @@
 		ctx.fillStyle = '#aaa';
 		ctx.font = `${barFontSize}px Arial`;
 		ctx.textAlign = 'center';
-		ctx.fillText(snrType === 'count' ? 'Counts per Point' : 'SNR (dB)', barX + barWidth / 2, barY_SNR - titleYOffset);
+		let barTitle;
+		switch(snrType) {
+			case 'count': barTitle = 'Counts per Point'; break;
+			case 'alt': barTitle = 'Altitude (km)'; break;
+			default: barTitle = 'SNR (dB)';
+		}
+		ctx.fillText(barTitle, barX + barWidth / 2, barY_SNR - titleYOffset);
 
 		ctx.font = `${baseFontSize}px Arial`;
 		for (let i = 0; i < tickCount; i++) {
@@ -1251,6 +1282,9 @@
 			case 'max': return cell.maxSNR;
 			case 'count': return cell.count;
 			case 'sum': return cell.sumSNR;
+			case 'alt': return cell.avgAlt / 1000;       // Average in km
+			case 'alt_min': return cell.minAlt / 1000;    // Minimum in km
+			case 'alt_max': return cell.maxAlt / 1000;    // Maximum in km
 			case 'avg':
 			default: return cell.sumSNR / cell.count;
 		}
@@ -1363,7 +1397,14 @@ function renderAndPreview() {
 		densityMinBrightnessInput.disabled = !isEnabled;
 		densityStrengthInput.disabled = !isEnabled;
 		densityMaxInput.disabled = !isEnabled;
-		densityControlsContainer.style.opacity = isEnabled ? '1' : '0.6';
+
+		densityControlsContainer.querySelectorAll('.control-group').forEach(group => {
+			if (group.classList.contains('no-dim')) {
+				group.style.opacity = '1';
+			} else {
+				group.style.opacity = isEnabled ? '1' : '0.6';
+			}
+		});
 	}
 	
 	function calculatePolarPlotArea(width, height) {
@@ -1396,23 +1437,30 @@ function renderAndPreview() {
 	
 	// SNR type
 	snrTypeSelect.addEventListener('change', function() {
-		snrType = this.value;
-		// Auto-adjust SNR range when switching to sum/count modes
-		switch(snrType) {
+		const type = this.value;
+		switch(type) {
 			case 'count':
-					snrMin = 1;    // COLD color for cells with at least 1 count
-					snrMax = 50;  // HOT color for 50 or more counts
-					snrMinInput.value = snrMin;
-					snrMaxInput.value = snrMax;
+				MIN_SNR = 1;
+				MAX_SNR = 50;
 				break;
-				
 			case 'sum':
-					snrMin = 20;    // COLD color for sum SNR <= 20
-					snrMax = 200;  // HOT color at sum SNR >= 200
-					snrMinInput.value = snrMin;
-					snrMaxInput.value = snrMax;
+				MIN_SNR = 20;
+				MAX_SNR = 200;
 				break;
+			case 'alt':
+			case 'alt_min':
+			case 'alt_max':
+				// Set range for altitude in km
+				MIN_SNR = parseFloat(zMinInput.value || 0);
+				MAX_SNR = parseFloat(zMaxInput.value || 40);
+				break;
+			default:
+				MIN_SNR = 8;
+				MAX_SNR = 28;
 		}
+		
+		snrMinInput.value = MIN_SNR;
+		snrMaxInput.value = MAX_SNR;
 		renderAndPreview();
 	});
 	snrMinInput.addEventListener('change', function() {
@@ -1484,7 +1532,7 @@ function renderAndPreview() {
         
         // Create download link
         const link = document.createElement('a');
-        link.download = 'SNR-Az-Dist-plot-' + new Date().toISOString().slice(0, 10) + '.png';
+        link.download = 'SNR-Az-Dist-polar-' + new Date().toISOString().slice(0, 10) + '.png';
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
     });
