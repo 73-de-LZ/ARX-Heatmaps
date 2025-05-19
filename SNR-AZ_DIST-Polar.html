@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.3.20 - With Aggregation/Rendering Separation -->
+<!-- Ver.4.20 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -395,16 +395,26 @@
         <div class="control-group control-group-flex">
 				<label for="snrType" class="control-label">Color mapping by:</label>
                 <select id="snrType">
-                    <option value="min">Minimum SNR (dB):</option>
-                    <option value="avg" selected>Average SNR (dB):</option>
-                    <option value="max">Maximum SNR (dB):</option>
-                    <option value="first">First SNR (dB):</option>
-                    <option value="last">Last SNR (dB):</option>
-                    <option value="sum">Sum SNR (dB):</option>
-                    <option value="count">Counts per Point</option>
+					<!-- Basic Metrics -->
+					<option value="avg" selected>Average SNR (dB):</option>
+					<option value="min">Minimum SNR (dB):</option>
+					<option value="max">Maximum SNR (dB):</option>
+					<option value="first">First SNR Sample (dB):</option>
+					<option value="last">Last SNR Sample (dB):</option>
+					<option value="sum">Sum SNR (dB):</option>
+					
+					<!-- Altitude Metrics -->
 					<option value="alt">Average Altitude (km):</option>
 					<option value="alt_min">Minimum Altitude (km):</option>
 					<option value="alt_max">Maximum Altitude (km):</option>
+					
+					<!-- Ratio Metrics -->
+					<option value="snr_per_altkm">SNR/ALT. (dB/km):</option>
+					<option value="snr_per_distkm">SNR/DIST. (dB/km):</option>
+					
+					<!-- Special Cases -->
+					<option value="count">Data Point Count</option>
+					<select id="snrType">
                 </select>
         </div>
 		<!-- Values for Color Range -->
@@ -585,6 +595,8 @@
     const progressDiv = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
 	
+	const losInputs = document.querySelectorAll('#los-controls-container input');
+	
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
     const previewCanvas = document.getElementById('preview-canvas');
@@ -623,23 +635,39 @@
     // 2. AGGREGATION FUNCTIONS
     // =============================================
 
-    function initializeAggregatedData(width, height) {
-        const data = new Array(width);
-        for (let x = 0; x < width; x++) {
-            data[x] = new Array(height);
-            for (let y = 0; y < height; y++) {
-                data[x][y] = {
-                    sumSNR: 0,
-                    count: 0,
-                    minSNR: Infinity,
-                    maxSNR: -Infinity,
-                    firstSNR: null,
-                    lastSNR: null,
-                };
-            }
-        }
-        return data;
-    }
+	function initializeAggregatedData(width, height) {
+		const data = new Array(width);
+		for (let x = 0; x < width; x++) {
+			data[x] = new Array(height);
+			for (let y = 0; y < height; y++) {
+				data[x][y] = {
+					// Core counters
+					count: 0,
+					sumSNR: null,
+					sumAlt: null,
+					
+					// SNR metrics
+					minSNR: null,
+					maxSNR: null,
+					firstSNR: null,
+					lastSNR: null,
+					avgSNR: null,
+					
+					// Altitude metrics (meters)
+					minAlt: null,
+					maxAlt: null,
+					firstAlt: null,
+					lastAlt: null,
+					avgAlt: null,
+					
+					// Ratio metrics
+					snrPerAlt: null,
+					snrPerDist: null
+				};
+			}
+		}
+		return data;
+	}
 
     async function aggregateData() {
         try {
@@ -698,42 +726,47 @@
 		});
 	}
 	
-function updateAggregatedData(data, x, y, entry) {
-    const cell = data[x][y];
-    
-    // Initialize cell if first entry
-    if (cell.count === 0) {
-        cell.sumSNR = 0;
-        cell.minSNR = Infinity;
-        cell.maxSNR = -Infinity;
-        cell.firstSNR = null;
-        cell.lastSNR = null;
-        
-        // Initialize altitude tracking
-        cell.sumAlt = 0;
-        cell.minAlt = Infinity;  // Minimum altitude (meters)
-        cell.maxAlt = -Infinity; // Maximum altitude (meters)
-        cell.avgAlt = 0;         // Average altitude (meters)
-    }
-    
-    // Update SNR statistics
-    cell.sumSNR += entry.snr;
-    cell.count++;
-    
-    // Update SNR min/max
-    cell.minSNR = Math.min(cell.minSNR, entry.snr);
-    cell.maxSNR = Math.max(cell.maxSNR, entry.snr);
-    
-    // Update first/last SNR
-    if (cell.firstSNR === null) cell.firstSNR = entry.snr;
-    cell.lastSNR = entry.snr;
-    
-    // Update altitude statistics (all in meters)
-    cell.sumAlt += entry.alt;
-    cell.minAlt = Math.min(cell.minAlt, entry.alt);
-    cell.maxAlt = Math.max(cell.maxAlt, entry.alt);
-    cell.avgAlt = cell.sumAlt / cell.count;
-}
+	function updateAggregatedData(data, x, y, entry) {
+		const cell = data[x][y];
+		
+		// First update converts nulls to initial values
+		if (cell.count === 0) {
+			cell.sumSNR = 0;
+			cell.sumAlt = 0;
+		}
+		
+		// Update counters
+		cell.count++;
+		cell.sumSNR += entry.snr;
+		cell.sumAlt += entry.alt;
+		
+		// Update SNR extremes
+		cell.minSNR = cell.minSNR !== null ? Math.min(cell.minSNR, entry.snr) : entry.snr;
+		cell.maxSNR = cell.maxSNR !== null ? Math.max(cell.maxSNR, entry.snr) : entry.snr;
+		
+		// Capture first/last samples
+		cell.firstSNR = cell.firstSNR ?? entry.snr;
+		cell.lastSNR = entry.snr;
+		cell.firstAlt = cell.firstAlt ?? entry.alt;
+		cell.lastAlt = entry.alt;
+		
+		// Update altitude extremes
+		cell.minAlt = cell.minAlt !== null ? Math.min(cell.minAlt, entry.alt) : entry.alt;
+		cell.maxAlt = cell.maxAlt !== null ? Math.max(cell.maxAlt, entry.alt) : entry.alt;
+		
+		// Calculate averages
+		cell.avgSNR = cell.sumSNR / cell.count;
+		cell.avgAlt = cell.sumAlt / cell.count;
+		
+		// Calculate ratios if valid
+		if (cell.avgAlt > 0) {
+			const altKm = cell.avgAlt / 1000;
+			cell.snrPerAlt = cell.avgSNR / altKm;
+		}
+		if (cell.count > 0 && entry.distance > 0) {
+			cell.snrPerDist = cell.avgSNR / entry.distance; // dB/km
+		}
+	}
 
     // =============================================
     // 3. RENDERING FUNCTIONS
@@ -796,7 +829,7 @@ function updateAggregatedData(data, x, y, entry) {
 				
 				if (cell.count >= MIN_CELL_COUNT) {
 					const value = getCellValue(cell, snrType);
-					let [r, g, b] = getColorForSNR(value);
+					let [r, g, b] = getColorForValue(value);
 					
 					if (densityEnabled) {
 						let brightness = 0;
@@ -1177,7 +1210,7 @@ function updateAggregatedData(data, x, y, entry) {
 		for (let i = 0; i < barWidth; i++) {
 			const normalized = i / barWidth;
 			const snr = MIN_SNR + normalized * (MAX_SNR - MIN_SNR);
-			const [r, g, b] = getColorForSNR(snr);
+			const [r, g, b] = getColorForValue(snr);
 			ctx.fillStyle = `rgb(${r},${g},${b})`;
 			ctx.fillRect(barX + i, barY_SNR, 1, barHeight);
 		}
@@ -1193,6 +1226,10 @@ function updateAggregatedData(data, x, y, entry) {
 		switch(snrType) {
 			case 'count': barTitle = 'Counts per Point'; break;
 			case 'alt': barTitle = 'Altitude (km)'; break;
+			case 'alt_min': barTitle = 'Min. Altitude (km)'; break;
+			case 'alt_max': barTitle = 'Max. Altitude (km)'; break;
+			case 'snr_per_altkm': barTitle = 'SNR/ALT. (dB/km)'; break;
+			case 'snr_per_distkm': barTitle = 'SNR/DIST. Normalized (dB/km)'; break;
 			default: barTitle = 'SNR (dB)';
 		}
 		ctx.fillText(barTitle, barX + barWidth / 2, barY_SNR - titleYOffset);
@@ -1275,18 +1312,31 @@ function updateAggregatedData(data, x, y, entry) {
     // =============================================
 	// Helper function to get the appropriate value from a cell
 	function getCellValue(cell, snrType) {
+		if (cell.count === 0) return null;
+		const yMax = parseFloat(yMaxInput.value) || 900;
 		switch(snrType) {
-			case 'first': return cell.firstSNR;
-			case 'last': return cell.lastSNR;
+			// Basic SNR
+			case 'avg': return cell.avgSNR;
 			case 'min': return cell.minSNR;
 			case 'max': return cell.maxSNR;
-			case 'count': return cell.count;
+			case 'first': return cell.firstSNR;
+			case 'last': return cell.lastSNR;
 			case 'sum': return cell.sumSNR;
-			case 'alt': return cell.avgAlt / 1000;       // Average in km
-			case 'alt_min': return cell.minAlt / 1000;    // Minimum in km
-			case 'alt_max': return cell.maxAlt / 1000;    // Maximum in km
-			case 'avg':
-			default: return cell.sumSNR / cell.count;
+			
+			// Altitude (converted to km)
+			case 'alt': return cell.avgAlt / 1000;
+			case 'alt_min': return cell.minAlt / 1000;
+			case 'alt_max': return cell.maxAlt / 1000;
+			
+			// Ratios
+			case 'snr_per_altkm': return cell.snrPerAlt;
+			case 'snr_per_distkm': return cell.snrPerDist * yMax; // normalization
+			
+			// Special cases
+
+			case 'count': return cell.count;
+			
+			default: return -111;
 		}
 	}
 	
@@ -1295,42 +1345,40 @@ function updateAggregatedData(data, x, y, entry) {
         return { width, height };
     }
 
-    function getColorForSNR(snr) {
-        if (isNaN(snr)) return [0, 0, 0, 0];
-        
-        // Normalize SNR value between MIN_SNR and MAX_SNR to 0-1 range
-        const normalized = Math.min(1, Math.max(0, (snr - MIN_SNR) / (MAX_SNR - MIN_SNR)));
-        
+	function getColorForValue(value) {
+		if (value === null || isNaN(value)) return [0, 0, 0, 0]; // Transparent for null/NaN
+		
+		// Standard SNR/altitude normalization
+		const normalized = Math.min(1, Math.max(0, (value - MIN_SNR) / (MAX_SNR - MIN_SNR)));
+		
         // Get selected color scheme
         const scheme = document.getElementById('colorScheme').value;
         const stops = COLOR_SCHEMES[scheme];
-        
-        // Find the two stops the normalized value falls between
-        let lower = stops[0];
-        let upper = stops[stops.length - 1];
-        
-        for (let i = 0; i < stops.length; i++) {
-            if (stops[i][0] >= normalized) {
-                upper = stops[i];
-                lower = i > 0 ? stops[i-1] : upper;
-                break;
-            }
-        }
-        
-        // If exactly on a stop point, return that color
-        if (lower[0] === upper[0]) {
-            return [lower[1], lower[2], lower[3]];
-        }
-        
-        // Linearly interpolate between the two colors
-        const t = (normalized - lower[0]) / (upper[0] - lower[0]);
-        
-        return [
-            Math.round(lower[1] + t * (upper[1] - lower[1])),  // R
-            Math.round(lower[2] + t * (upper[2] - lower[2])),  // G
-            Math.round(lower[3] + t * (upper[3] - lower[3]))   // B
-        ];
-    }
+		
+		// Original reliable color interpolation
+		let lower = stops[0];
+		let upper = stops[stops.length - 1];
+		
+		for (let i = 0; i < stops.length; i++) {
+			if (stops[i][0] >= normalized) {
+				upper = stops[i];
+				lower = i > 0 ? stops[i-1] : upper;
+				break;
+			}
+		}
+		
+		if (lower[0] === upper[0]) {
+			return [lower[1], lower[2], lower[3]];
+		}
+		
+		const t = (normalized - lower[0]) / (upper[0] - lower[0]);
+		
+		return [
+			Math.round(lower[1] + t * (upper[1] - lower[1])),  // R
+			Math.round(lower[2] + t * (upper[2] - lower[2])),  // G
+			Math.round(lower[3] + t * (upper[3] - lower[3]))   // B
+		];
+	}
 
     function calculateTickInterval(range, pixels) {
         const targetTicks = pixels / 100;
@@ -1435,6 +1483,10 @@ function renderAndPreview() {
 		renderAndPreview();
     });
 	
+	losInputs.forEach(input => {
+		input.addEventListener('change', renderAndPreview);
+	});
+	
 	// SNR type
 	snrTypeSelect.addEventListener('change', function() {
 		const type = this.value;
@@ -1447,6 +1499,14 @@ function renderAndPreview() {
 				MIN_SNR = 20;
 				MAX_SNR = 200;
 				break;
+			case 'snr_per_altkm':
+				MIN_SNR = 1;
+				MAX_SNR = 5; // Adjust
+				break;
+			case 'snr_per_distkm':
+				MIN_SNR = 1;
+				MAX_SNR = 100; // Adjust
+				break;				
 			case 'alt':
 			case 'alt_min':
 			case 'alt_max':
