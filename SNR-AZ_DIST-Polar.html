@@ -310,7 +310,7 @@
         </div>
 		<!-- FILTER -->
         <div class="control-group control-group-flex">
-            <label class="range-label">Altitude Filter:</label>
+            <label class="range-label" title="Aggregate only points within this range.">Altitude Filter:</label>
             <div class="range-inputs">
                 <input type="number" id="zMin" placeholder="Min" value="0" step="0.5">
                 <span>to</span>
@@ -341,7 +341,8 @@
             <!-- Column 1 - Observer Settings -->
             <div class="range-control">
                 <div class="form-row">
-                    <label for="observerHeight" class="range-label">RX Antenna ASL (m):</label>
+                    <label for="observerHeight" class="range-label"
+					title="Used only in LOS and Horizon calculations.">RX Antenna ASL (m):</label>
                     <input type="number" id="observerHeight" value="100" min="0" step="10">
                 </div>
                 <div class="form-row">
@@ -393,8 +394,10 @@
         </div>
         <!-- Color mapping -->
         <div class="control-group control-group-flex">
-				<label for="snrType" class="control-label">Color mapping by:</label>
-                <select id="snrType">
+				<label for="snrType" class="control-label" 
+				title="Choose what data to be represented by the color coding.">Color mapping by:</label>
+                <select id="snrType" title="Usage: First and Last SNR could be used to compare SNR
+after some improovment made on your receiver or antenna.">
 					<!-- Basic Metrics -->
 					<option value="avg" selected>Average SNR (dB):</option>
 					<option value="min">Minimum SNR (dB):</option>
@@ -419,7 +422,7 @@
         </div>
 		<!-- Values for Color Range -->
         <div class="control-group control-group-flex">
-                <label class="range-label">From:</label>
+                <label class="range-label" title="Negative values and reversed order are accepted.">From:</label>
                 <div class="range-inputs">
                     <input type="number" id="snrMin" placeholder="Min" value="8" step="1">
                     <span>to</span>
@@ -467,7 +470,9 @@
 			
 			<!-- Density Strength -->
 			<div class="control-group control-group-flex">
-				<label class="range-label">Density &gamma;-correction:</label>
+				<label class="range-label"
+				title="Controls the nonlinear scaling (γ-correction) of brightness based on density. Linear if = 1.0"
+				>Density &gamma;-correction:</label>
 				<div class="range-inputs">
 					<input type="number" id="densityStrength" placeholder="Strength" value="0.7" min="0.1" max="10" step="0.1">
 				</div>
@@ -475,14 +480,15 @@
 			
 			<!-- Density Max -->
 			<div class="control-group control-group-flex">
-				<label class="range-label">Density Max Count:</label>
+				<label class="range-label" title="Clamps greater counts to this value">Density Max Count:</label>
 				<div class="range-inputs">
 					<input type="number" id="densityMax" placeholder="Max" value="10" min="1" max="99" step="1">
 				</div>
 			</div>
 			<div class="control-group control-group-flex no-dim">
 				<!-- &#9728; Brightness by Density (Counts) -->
-                <label for="densityEnabled" class="control-label">Highlight Density:</label>
+                <label for="densityEnabled" class="control-label"
+				title="Modify brightness based on the count of data points present in each pixel.">Highlight Density:</label>
                 <input type="checkbox" id="densityEnabled" checked>        
 			</div>			
 		</div>
