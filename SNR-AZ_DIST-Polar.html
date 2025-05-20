@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ver.4.20 - With Aggregation/Rendering Separation -->
+<!-- Ver.5.10 - With Aggregation/Rendering Separation -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -895,7 +895,7 @@ after some improovment made on your receiver or antenna.">
 
 	function openDatabase() {
 		return new Promise((resolve, reject) => {
-			const request = indexedDB.open('RadiosondeDB', 2);
+			const request = indexedDB.open('RadiosondeDB', 3);
 			
 			request.onupgradeneeded = (event) => {
 				const db = event.target.result;
