@@ -29,7 +29,7 @@ The `Main.html` file creates or updates a local **IndexedDB** in your browser, w
 
 ### 2. Update the Database
 
-- Open `Main.html` in your browser or `Main_LowMEM.html` if you have a large number of log files (e.g., over 1,000).
+- Open `Main.html` in your browser.
 - Click **Update Database** to process and store the data.
 - You can repeat this step anytime to add new logs.
 
@@ -53,23 +53,7 @@ http://localhost:8000
 ### ⚠️ Troubleshooting Tips
 
 <details>
-<summary><strong>⚠️ Having performance issues or crashes during database update?</strong></summary>
-<small>
-
-If you experience browser crashes during database updates, try the following:
-
-- Use the Low Memory version: `Main_LowMEM.html` (uses `openCursor()` instead of `getAll()`).
-- Or process logs in smaller batches:
-  - Copy a portion of the logs, less than 1000 files.
-  - Open `main.html` and update the database.
-  - When DB is updated remove these log files.
-  - Add the next batch and repeat the process until all logs are imported.
-
-</small>
-</details>
-
-<details>
-<summary><strong>⚠️ Manually delete the IndexedDB if issues persist</strong></summary>
+<summary><strong>⚠️ Manually delete the IndexedDB if there is some issue</strong></summary>
 <small>
 
 Sometimes the browser’s local database can get stuck or corrupted. Here's how to clear it:
