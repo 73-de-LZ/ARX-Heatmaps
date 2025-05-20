@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version 3.20LowMEM -->
+<!-- version 5.10 -->
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
@@ -9,7 +9,7 @@
 		:root {
 			--bg-color: #121212;
 			--text-color: #e0e0e0;
-			--primary-color: #bb86fc;
+			--primary-color: #178c99;
 			--secondary-color: #03dac6;
 			--error-color: #cf6679;
 			--surface-color: #1e1e1e;
@@ -113,6 +113,11 @@
 
 		#configBtn {
 			background-color: #018786;
+		}
+		
+		#searchSerialBtn {
+			background-color: var(--primary-color);
+			margin-right: 10px;
 		}
 
 		#DistAltBtn {
@@ -219,7 +224,11 @@
 </head>
 <body>
 	<h3>ARX Heatmaps &nbsp - &nbsp Radiosonde_Auto_RX Log Visualizer &nbsp - &nbsp Seek deep with DeepSeek</h3>
-
+	<div id="heatmapplots">	
+		<button id="DistAltBtn" disabled>SNR vs DIST-ALT</button>
+		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
+		<button id="AzElBtn" disabled>SNR vs AZ-EL</button>
+	</div>
 	<div id="stationInfo">Station: Not configured</div>
 
 	<div id="controls">
@@ -227,13 +236,13 @@
 		<button id="clearDbBtn" disabled>Clear Database</button>
 		<button id="queryBtn" disabled>Query Data</button>
 		<select id="serialSelect" disabled>
-			<option value="">All Serials</option>
+		<option value="">All Serials</option>
 		</select>
-		<input type="number" id="limitInput" placeholder="Limit results" value="100" min="1" />
-		<button id="DistAltBtn" disabled>SNR vs DIST-ALT</button>
-		<button id="AzAltBtn" disabled>SNR vs AZ-ALT</button>
-		<button id="AzElBtn" disabled>SNR vs AZ-EL</button>
-	</div>
+		<input type="text" id="manualSerialInput" placeholder="Enter Serial" disabled>
+		<button id="searchSerialBtn" disabled>Search</button>
+		<input type="number" id="limitInput" placeholder="Limit results" value="10000" min="100" max="20000" step="100">
+	</div>	
+
 
 	<div class="progress-container" id="progressContainer" style="display: none;">
 		<div class="progress-bar" id="progressBar"></div>
@@ -250,10 +259,9 @@
 					<th>Timestamp</th>
 					<th>Serial</th>
 					<th>Frame</th>
-					<th>Dist. (km)</th>
-					<th>El</th>
 					<th>Az</th>
-					<!-- New Azimuth column -->
+					<th>El</th>
+					<th>Dist.(km)</th>
 					<th>SNR</th>
 					<th>Alt</th>
 					<th>Lat</th>
@@ -268,12 +276,17 @@
 
 	<script>
 		// Database setup
+		
 		const DB_NAME = "RadiosondeDB";
-		const DB_VERSION = 2;
+		const DB_VERSION = 3; // Incremented version
 		const STORE_NAME = "logEntries";
 		const FILE_TRACKER_STORE = "importedFiles";
+		const STATION_INFO_STORE = "stationInfo";
+
+
 		let db;
 		let dbInitialized = false;
+		const serialFirstRX = new Set();
 
 		// Station configuration
 		let stationConfig = {
@@ -295,35 +308,59 @@
 		const progressContainer = document.getElementById("progressContainer");
 		const progressBar = document.getElementById("progressBar");
 		const stationInfo = document.getElementById("stationInfo");
+		
+		const QUERY_LIMIT = 20000;  // Maximum allowed records to query
+		const SERIAL_LIMIT = 1000; // Maximum serial numbers to load
+		let serialCache = new Set();
+		let serialCacheComplete = false;
+
+		// Configure limit input
+		limitInput.value = "10000";  // Default value
+		limitInput.max = QUERY_LIMIT;
+		limitInput.title = `Max ${QUERY_LIMIT} records`; // Tooltip
 
 		// Initialize the database
 		function initDB() {
 			return new Promise((resolve, reject) => {
 				const request = indexedDB.open(DB_NAME, DB_VERSION);
 
+				request.onerror = (event) => {
+					reject(new Error("DB open failed: " + event.target.error));
+				};
+
 				request.onupgradeneeded = (event) => {
 					const db = event.target.result;
-					if (!db.objectStoreNames.contains(STORE_NAME)) {
-						const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-						store.createIndex("timestamp", "timestamp", { unique: false });
-						store.createIndex("serial", "serial", { unique: false });
-					}
-					if (!db.objectStoreNames.contains(FILE_TRACKER_STORE)) {
-						db.createObjectStore(FILE_TRACKER_STORE, { keyPath: "filename" });
+					try {
+						if (!db.objectStoreNames.contains(STORE_NAME)) {
+							const store = db.createObjectStore(STORE_NAME, { 
+								keyPath: "id", 
+								autoIncrement: true 
+							});
+							store.createIndex("timestamp", "timestamp", { unique: false });
+							store.createIndex("serial", "serial", { unique: false });
+							store.createIndex("rxType", "rxType", { unique: false });
+						}
+						if (!db.objectStoreNames.contains(FILE_TRACKER_STORE)) {
+							db.createObjectStore(FILE_TRACKER_STORE, { keyPath: "filename" });
+						}
+						if (!db.objectStoreNames.contains(STATION_INFO_STORE)) {
+							db.createObjectStore(STATION_INFO_STORE, { keyPath: "id" });
+						}
+					} catch (e) {
+						reject(new Error("DB upgrade failed: " + e.message));
 					}
 				};
 
 				request.onsuccess = (event) => {
-					db = event.target.result;
-					dbInitialized = true;
-					resolve(db);
+					resolve(event.target.result);
 				};
 
-				request.onerror = (event) => {
-					reject("Database error: " + event.target.errorCode);
+				request.onblocked = () => {
+					reject(new Error("DB blocked - close other tabs using this DB"));
 				};
 			});
 		}
+		
 		async function isFileProcessed(filename) {
 			return new Promise((resolve) => {
 				const tx = db.transaction(FILE_TRACKER_STORE, "readonly");
@@ -349,12 +386,10 @@
 		// Load station configuration from station.cfg
 		async function loadStationConfig(directoryHandle) {
 			try {
-				// Try to get the station.cfg file
 				const fileHandle = await directoryHandle.getFileHandle("station.cfg");
 				const file = await fileHandle.getFile();
 				const text = await file.text();
 
-				// Parse the configuration file
 				const latMatch = text.match(/station_lat\s*=\s*(-?[\d.]+)/);
 				const lonMatch = text.match(/station_lon\s*=\s*(-?[\d.]+)/);
 				const altMatch = text.match(/station_alt\s*=\s*(-?[\d.]+)/);
@@ -362,13 +397,54 @@
 				const aprsUserMatch = text.match(/aprs_user\s*=\s*([^\s]+)/);
 
 				if (latMatch && lonMatch) {
-					stationConfig.lat = parseFloat(latMatch[1]);
-					stationConfig.lon = parseFloat(lonMatch[1]);
-					stationConfig.alt = altMatch ? parseFloat(altMatch[1]) : 0;
+					const newLat = parseFloat(latMatch[1]);
+					const newLon = parseFloat(lonMatch[1]);
+					const newAlt = altMatch ? parseFloat(altMatch[1]) : 0;
+					const newCallsign = callsignMatch ? callsignMatch[1] : aprsUserMatch ? aprsUserMatch[1] : "Unknown";
 
-					// Use callsign from uploader_callsign or aprs_user
-					stationConfig.callsign = callsignMatch ? callsignMatch[1] : aprsUserMatch ? aprsUserMatch[1] : "Unknown";
+					// Check if we have existing station info
+					try {
+						const existingInfo = await getStationInfo();
+						if (existingInfo) {
+							// Compare locations
+							const locationChanged = 
+								Math.abs(existingInfo.lat - newLat) > 0.0001 ||
+								Math.abs(existingInfo.lon - newLon) > 0.0001 ||
+								Math.abs(existingInfo.alt - newAlt) > 1;
+							
+							if (locationChanged) {
+								const confirmUpdate = confirm(
+									"MAJOR ERROR: DB contains information for another station (" + 
+									existingInfo.callsign + " @ " + existingInfo.lat.toFixed(4) + ", " + 
+									existingInfo.lon.toFixed(4) + ").\n\n" +
+									"New station: " + newCallsign + " @ " + newLat.toFixed(4) + ", " + 
+									newLon.toFixed(4) + "\n\n" +
+									"Database will be updated with new data calculated for the new station, " +
+									"but visualization will not be correct.\n\n" +
+									"Create another DB for the new station or correct location in station.cfg?\n\n" +
+									"Click OK to proceed with update (not recommended), " +
+									"or Cancel to abort."
+								);
+								
+								if (!confirmUpdate) {
+									statusDiv.textContent = "Update aborted - station location changed";
+									statusDiv.className = "error";
+									return false;
+								}
+							}
+						}
+					} catch (e) {
+						console.log("No existing station info or error reading it", e);
+					}
 
+					// Update station config
+					stationConfig.lat = newLat;
+					stationConfig.lon = newLon;
+					stationConfig.alt = newAlt;
+					stationConfig.callsign = newCallsign;
+
+					// Save the new station info
+					await saveStationInfo();
 					updateStationInfo();
 					return true;
 				} else {
@@ -383,7 +459,38 @@
 			}
 		}
 
-		// Update station info display
+		async function saveStationInfo() {
+			return new Promise((resolve, reject) => {
+				const transaction = db.transaction([STATION_INFO_STORE], "readwrite");
+				const store = transaction.objectStore(STATION_INFO_STORE);
+				const info = {
+					id: 1, // Single record with fixed ID
+					callsign: stationConfig.callsign,
+					lat: stationConfig.lat,
+					lon: stationConfig.lon,
+					alt: stationConfig.alt,
+					timestamp: new Date().toISOString()
+				};
+				
+				const request = store.put(info);
+				
+				request.onsuccess = resolve;
+				request.onerror = (event) => reject(event.target.error);
+			});
+		}
+
+		async function getStationInfo() {
+			return new Promise((resolve, reject) => {
+				const transaction = db.transaction([STATION_INFO_STORE], "readonly");
+				const store = transaction.objectStore(STATION_INFO_STORE);
+				const request = store.get(1);
+				
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = (event) => reject(event.target.error);
+			});
+		}
+
+
 		// Update station info display
 		async function updateStationInfo() {
 			let infoText = "";
@@ -400,20 +507,20 @@
 					// Get all counts in parallel
 					const [totalRecords, serialsCount, filesCount] = await Promise.all([
 						getTotalRecordsCount(),
-						getSerialsCount(), // Now returns count directly
+						getSerialsCount(),
 						getFilesCount(),
 					]);
 
 					infoText += ` | Records: ${totalRecords} | Serials: ${serialsCount} | Files: ${filesCount}`;
 				} catch (e) {
 					console.error("Error getting counts:", e);
-					// Optional: Add error indicator to UI if desired
 					infoText += " | Counts: Error";
 				}
 			}
 
 			stationInfo.textContent = infoText;
 		}
+
 		// Helper Get total records count
 		async function getTotalRecordsCount() {
 			return new Promise((resolve, reject) => {
@@ -518,121 +625,215 @@
 		}
 
 		// Clear the database
-		function clearDB() {
+		async function clearDB() {
 			return new Promise((resolve, reject) => {
-				const transaction = db.transaction([STORE_NAME, FILE_TRACKER_STORE], "readwrite");
+				// Create a transaction that includes all object stores
+				const transaction = db.transaction(
+					[STORE_NAME, FILE_TRACKER_STORE, STATION_INFO_STORE], 
+					"readwrite"
+				);
+
+				// Clear each object store
 				const logStore = transaction.objectStore(STORE_NAME);
 				const fileStore = transaction.objectStore(FILE_TRACKER_STORE);
+				const stationStore = transaction.objectStore(STATION_INFO_STORE);
 
-				const logRequest = logStore.clear();
-				const fileRequest = fileStore.clear();
+				// Track completion of all clear operations
+				let operationsCompleted = 0;
+				const totalOperations = 3;
+				let anyError = null;
 
-				transaction.oncomplete = () => {
-					statusDiv.textContent = "Database cleared";
-					statusDiv.className = "success";
-					tableBody.innerHTML = "";
-					serialSelect.innerHTML = '<option value="">All Serials</option>';
-					resolve();
+				function checkCompletion() {
+					operationsCompleted++;
+					if (operationsCompleted === totalOperations) {
+						if (anyError) {
+							reject(anyError);
+						} else {
+							// All clears completed successfully
+							statusDiv.textContent = "Database fully cleared";
+							statusDiv.className = "success";
+							tableBody.innerHTML = "";
+							serialSelect.innerHTML = '<option value="">All Serials</option>';
+							// Reset station config
+							stationConfig = {
+								lat: null,
+								lon: null,
+								alt: 0,
+								callsign: null
+							};
+							updateStationInfo();
+							resolve();
+						}
+					}
+				}
+
+				// Clear log entries store
+				const logClearRequest = logStore.clear();
+				logClearRequest.onsuccess = checkCompletion;
+				logClearRequest.onerror = (event) => {
+					anyError = event.target.error;
+					checkCompletion();
 				};
 
+				// Clear file tracker store
+				const fileClearRequest = fileStore.clear();
+				fileClearRequest.onsuccess = checkCompletion;
+				fileClearRequest.onerror = (event) => {
+					anyError = event.target.error;
+					checkCompletion();
+				};
+
+				// Clear station info store
+				const stationClearRequest = stationStore.clear();
+				stationClearRequest.onsuccess = checkCompletion;
+				stationClearRequest.onerror = (event) => {
+					anyError = event.target.error;
+					checkCompletion();
+				};
+
+				// Transaction error handler
 				transaction.onerror = (event) => {
-					statusDiv.textContent = "Error clearing database";
-					statusDiv.className = "error";
+					anyError = event.target.error;
+					// Don't call checkCompletion here as individual operations might still complete
+				};
+			});
+		}
+
+
+		// Query data from the database
+		function queryData(serial = "", limit = 100) {
+			return new Promise((resolve, reject) => {
+				const transaction = db.transaction([STORE_NAME], "readonly");
+				const store = transaction.objectStore(STORE_NAME);
+				let request;
+				const results = [];
+
+				if (serial) {
+					const index = store.index("serial");
+					const range = IDBKeyRange.only(serial);
+					request = index.openCursor(range, "prev");  // reverse chronological
+				} else {
+					request = store.openCursor(null, "prev");
+				}
+
+				request.onsuccess = (event) => {
+					const cursor = event.target.result;
+					if (cursor && results.length < limit) {
+						results.push(cursor.value);
+						cursor.continue();
+					} else {
+						resolve(results);
+					}
+				};
+
+				request.onerror = (event) => {
 					reject(event.target.error);
 				};
 			});
 		}
 
-		// Query data from the database
-		function queryData(serial = "", limit = 100) {
-			return new Promise((resolve, reject) => {
-				try {
-					const transaction = db.transaction([STORE_NAME], "readonly");
-					const store = transaction.objectStore(STORE_NAME);
+		// ensure accurate serial numbers:
+		async function updateSerialList() {
+			try {
+				statusDiv.textContent = "Loading recent serial numbers...";
+				statusDiv.className = "info";
+				serialSelect.disabled = true;
 
-					let results = [];
-					let request;
+				// Clear dropdown
+				serialSelect.innerHTML = '<option value="">All Serials</option>';
 
-					if (serial) {
-						const index = store.index("serial"); // using your existing index
-						const keyRange = IDBKeyRange.only(serial.toString().toLowerCase());
-						request = index.openCursor(keyRange, "prev"); // newest first
-					} else {
-						request = store.openCursor(null, "prev");
-					}
+				// Get most recent timestamp
+				const latestTimestamp = await new Promise((resolve, reject) => {
+					const tx = db.transaction(STORE_NAME, "readonly");
+					const store = tx.objectStore(STORE_NAME);
+					const index = store.index("timestamp");
+					const cursorReq = index.openCursor(null, "prev"); // descending
 
-					request.onsuccess = async (event) => {
-						const cursor = event.target.result;
-						if (cursor && results.length < Math.min(limit, 10000)) {
-							results.push(cursor.value);
-
-							// Let UI update
-							if (results.length % 1000 === 0) {
-								await new Promise((r) => setTimeout(r, 0));
-							}
-
-							cursor.continue();
+					cursorReq.onsuccess = (e) => {
+						const cursor = e.target.result;
+						if (cursor && cursor.value.timestamp) {
+							resolve(cursor.value.timestamp);
 						} else {
-							resolve(results);
+							resolve(null);
 						}
 					};
+					cursorReq.onerror = () => reject("Failed to read latest timestamp");
+				});
 
-					request.onerror = (event) => {
-						reject(event.target.error);
-					};
-				} catch (e) {
-					reject(e);
+				if (!latestTimestamp) {
+					statusDiv.textContent = "No data found in DB";
+					statusDiv.className = "error";
+					return;
 				}
-			});
+
+				// Calculate 30-day cutoff
+				const latestDate = new Date(latestTimestamp);
+				const cutoffDate = new Date(latestDate);
+				cutoffDate.setDate(latestDate.getDate() - 30);
+				const cutoffISO = cutoffDate.toISOString();
+
+				// Query all records within 30 days
+				const serials = new Set();
+				const tx = db.transaction(STORE_NAME, "readonly");
+				const store = tx.objectStore(STORE_NAME);
+				const index = store.index("timestamp");
+				const range = IDBKeyRange.lowerBound(cutoffISO);
+				const req = index.openCursor(range, "prev");
+
+				req.onsuccess = (e) => {
+					const cursor = e.target.result;
+					if (cursor) {
+						if (cursor.value.serial) {
+							serials.add(cursor.value.serial);
+						}
+						cursor.continue();
+					} else {
+						// Done
+						const sortedSerials = Array.from(serials).sort();
+						for (const s of sortedSerials) {
+							const opt = document.createElement("option");
+							opt.value = s;
+							opt.textContent = s;
+							serialSelect.appendChild(opt);
+						}
+						statusDiv.textContent = `Loaded ${serials.size} recent serials`;
+						statusDiv.className = "success";
+						serialSelect.disabled = false;
+					}
+				};
+				req.onerror = () => {
+					statusDiv.textContent = "Error loading serials";
+					statusDiv.className = "error";
+					serialSelect.disabled = false;
+				};
+			} catch (e) {
+				console.error("updateSerialList error:", e);
+				statusDiv.textContent = "Serial loading failed";
+				statusDiv.className = "error";
+				serialSelect.disabled = false;
+			}
 		}
 
-		// Update the updateSerialList function to ensure accurate serial numbers:
-		function updateSerialList() {
-			return new Promise((resolve, reject) => {
-				try {
-					const transaction = db.transaction([STORE_NAME], "readonly");
-					const store = transaction.objectStore(STORE_NAME);
-					const index = store.index("serial");
 
-					const uniqueSerials = new Set();
-					const request = index.openCursor();
-
-					request.onsuccess = function (event) {
-						const cursor = event.target.result;
-						if (cursor) {
-							const serial = cursor.value.serial;
-							if (serial && !uniqueSerials.has(serial)) {
-								uniqueSerials.add(serial);
-							}
-							cursor.continue();
-						} else {
-							// Clear and populate the select element
-							serialSelect.innerHTML = '<option value="">All Serials</option>';
-							Array.from(uniqueSerials)
-								.sort()
-								.forEach((serial) => {
-									const option = document.createElement("option");
-									option.value = serial;
-									option.textContent = serial;
-									serialSelect.appendChild(option);
-								});
-							resolve();
-						}
-					};
-
-					request.onerror = function (event) {
-						reject(event.target.error);
-					};
-				} catch (e) {
-					reject(e);
-				}
+		// Add this new function to check if a serial exists
+		async function checkSerialExists(serial) {
+			if (serialCache.has(serial)) return true;
+			
+			return new Promise((resolve) => {
+				const transaction = db.transaction([STORE_NAME], "readonly");
+				const store = transaction.objectStore(STORE_NAME);
+				const index = store.index("serial");
+				const request = index.getKey(serial);
+				
+				request.onsuccess = () => resolve(!!request.result);
+				request.onerror = () => resolve(false);
 			});
 		}
 
 		// Parse a single CSV line and calculate distance
 		function parseCSVLine(line, headers) {
 			const values = line.split(",");
-			const entry = {};
+			const entry = {rxType: 0};
 
 			headers.forEach((header, index) => {
 				if (index < values.length) {
@@ -669,29 +870,38 @@
 		async function processFile(file) {
 			return new Promise((resolve, reject) => {
 				const reader = new FileReader();
-
 				reader.onload = async (event) => {
 					try {
 						const content = event.target.result;
-						const lines = content.split("\n");
-
-						if (lines.length < 2) {
-							resolve({ file: file.name, count: 0, skipped: 0 });
-							return;
+						const lines = content.split('\n');
+						
+						if (lines.length < 3) { // Need header + min 2 data lines
+							return resolve({ file: file.name, count: 0, skipped: 0 });
 						}
 
-						const headers = lines[0].split(",").map((h) => h.trim());
+						const headers = lines[0].split(',').map(h => h.trim());
 						let count = 0;
 						let skipped = 0;
 						const batchSize = 1000;
 						let batch = [];
+						const totalLines = lines.length;
 
-						for (let i = 1; i < lines.length; i++) {
+						for (let i = 1; i < totalLines; i++) {
 							const line = lines[i].trim();
 							if (!line) continue;
 
 							try {
 								const entry = parseCSVLine(line, headers);
+								
+								// Determine RX type - fixed logic
+								if (i === 1) {
+									entry.rxType = 1; // firstRX
+								} else if (i === totalLines - 2) {
+									entry.rxType = 2; // lastRX
+								} else {
+									entry.rxType = 0; // normal
+								}
+								
 								batch.push(entry);
 
 								if (batch.length >= batchSize) {
@@ -700,17 +910,10 @@
 									batch = [];
 								}
 							} catch (e) {
-								console.error(`Error parsing line ${i} in ${file.name}:`, e);
 								skipped++;
-							}
-
-							// Let the browser breathe every 5000 lines
-							if (i % 1000 === 0) {
-								await new Promise((r) => setTimeout(r, 0));
 							}
 						}
 
-						// Save final batch
 						if (batch.length > 0) {
 							await saveBatch(batch);
 							count += batch.length;
@@ -721,11 +924,7 @@
 						reject(e);
 					}
 				};
-
-				reader.onerror = () => {
-					reject(new Error(`Error reading file ${file.name}`));
-				};
-
+				reader.onerror = () => reject(new Error(`Error reading file ${file.name}`));
 				reader.readAsText(file);
 			});
 		}
@@ -749,7 +948,21 @@
 				};
 			});
 		}
-
+		
+		async function searchSerial(serial) {
+			if (!serial) return false;
+			
+			return new Promise((resolve) => {
+				const transaction = db.transaction([STORE_NAME], "readonly");
+				const store = transaction.objectStore(STORE_NAME);
+				const index = store.index("serial");
+				const request = index.getKey(serial);
+				
+				request.onsuccess = () => resolve(!!request.result);
+				request.onerror = () => resolve(false);
+			});
+		}
+		
 		// Display data in the table
 		function displayData(data) {
 			tableBody.innerHTML = "";
@@ -757,15 +970,22 @@
 			if (data.length === 0) {
 				const row = document.createElement("tr");
 				const cell = document.createElement("td");
-				cell.colSpan = 12; // Updated from 11 to 12
+				cell.colSpan = 11; // Adjusted column span
 				cell.textContent = "No data found";
 				row.appendChild(cell);
 				tableBody.appendChild(row);
 				return;
 			}
 
-			data.forEach((entry) => {
+			data.forEach((entry, index) => {
 				const row = document.createElement("tr");
+				
+				// Highlight first and last records
+				if (entry.rxType === 1) {
+					row.style.backgroundColor = "#074a0d"; // Light green for first record
+				} else if (entry.rxType === 2) {
+					row.style.backgroundColor = "#5c0808"; // Light red for last record
+				}
 
 				const addCell = (value, precision = null) => {
 					const cell = document.createElement("td");
@@ -779,7 +999,7 @@
 					row.appendChild(cell);
 				};
 
-				// Updated column order with Azimuth
+				// Add cells without RXtype
 				addCell(entry.timestamp);
 				addCell(entry.serial);
 				addCell(entry.frame);
@@ -790,11 +1010,19 @@
 				addCell(entry.alt, 1);
 				addCell(entry.lat, 6);
 				addCell(entry.lon, 6);
+
 				tableBody.appendChild(row);
 			});
 		}
 
 		// Event listeners
+		// Start initialization when DOM is ready
+		document.addEventListener('DOMContentLoaded', () => {
+			// Add a small delay to ensure all elements are loaded
+			setTimeout(init, 100);
+		});
+		
+		
 		updateDbBtn.addEventListener("click", async () => {
 			try {
 				// Use the File System Access API if available
@@ -884,36 +1112,28 @@
 
 		queryBtn.addEventListener("click", async () => {
 			try {
-				const serial = serialSelect.value;
-				const limit = parseInt(limitInput.value) || 100;
-
-				// Show loading state
+				// Disable during query
 				queryBtn.disabled = true;
 				statusDiv.textContent = "Querying data...";
 				statusDiv.className = "info";
-
-				// Add small delay to allow UI to update
-				await new Promise((resolve) => setTimeout(resolve, 50));
-
+				
+				const serial = serialSelect.value;
+				const limit = Math.min(parseInt(limitInput.value) || 10000, QUERY_LIMIT);
+				
 				const data = await queryData(serial, limit);
 				displayData(data);
-
-				// Update station info with counts AFTER displaying data
-				await updateStationInfo();
-
-				if (data.length === 0) {
-					statusDiv.textContent = serial ? `No records found for serial ${serial}` : "No records found in database";
-					statusDiv.className = "error";
-				} else {
-					statusDiv.textContent = `Displaying ${data.length} records${serial ? " for " + serial : ""}`;
-					statusDiv.className = "success";
-				}
+				
+				statusDiv.textContent = `Found ${data.length} records` + 
+									  (serial ? ` for ${serial}` : "");
+				statusDiv.className = data.length ? "success" : "error";
+				
 			} catch (e) {
 				console.error("Query error:", e);
-				statusDiv.textContent = "Error querying data: " + (e.message || "Unknown error");
+				statusDiv.textContent = "Query failed: " + (e.message || "Unknown error");
 				statusDiv.className = "error";
 			} finally {
-				queryBtn.disabled = false;
+				// Always re-enable controls
+				enableQueryControls();
 			}
 		});
 		DistAltBtn.addEventListener("click", () => {
@@ -924,6 +1144,46 @@
 		});
 		AzElBtn.addEventListener("click", () => {
 			window.open("SNR-AZ_EL.html", "_blank");
+		});
+		
+		document.getElementById("searchSerialBtn").addEventListener("click", async () => {
+			const searchBtn = document.getElementById("searchSerialBtn");
+			const manualInput = document.getElementById("manualSerialInput");
+			
+			try {
+				searchBtn.disabled = true;
+				manualInput.disabled = true;
+				
+				const serial = manualInput.value.trim();
+				if (!serial) return;
+				
+				statusDiv.textContent = `Checking serial ${serial}...`;
+				statusDiv.className = "info";
+				
+				const exists = await checkSerialExists(serial);
+				if (exists) {
+					if (!serialCache.has(serial)) {
+						const option = document.createElement("option");
+						option.value = serial;
+						option.textContent = serial;
+						serialSelect.appendChild(option);
+						serialCache.add(serial);
+					}
+					serialSelect.value = serial;
+					statusDiv.textContent = `Found serial ${serial}`;
+					statusDiv.className = "success";
+				} else {
+					statusDiv.textContent = `Serial ${serial} not found`;
+					statusDiv.className = "error";
+				}
+			} catch (e) {
+				statusDiv.textContent = "Error checking serial";
+				statusDiv.className = "error";
+				console.error("Serial check error:", e);
+			} finally {
+				searchBtn.disabled = false;
+				manualInput.disabled = false;
+			}
 		});
 
 		// Process directory using File System Access API
@@ -1037,7 +1297,7 @@
 			await queryBtn.click();
 		}
 
-		// Process files using the fallback method
+		// Process files using the fallback method (simplified version)
 		async function processFiles(files, clearFirst) {
 			statusDiv.textContent = clearFirst ? "Processing files..." : "Updating database...";
 			statusDiv.className = "info";
@@ -1057,11 +1317,10 @@
 				return;
 			}
 
-			// Clear database if this is the initial load
+			// Clear database if needed
 			if (clearFirst) {
 				try {
 					await clearDB();
-					// Also clear the file tracker
 					const tx = db.transaction(FILE_TRACKER_STORE, "readwrite");
 					const store = tx.objectStore(FILE_TRACKER_STORE);
 					await store.clear();
@@ -1077,14 +1336,14 @@
 			for (const file of files) {
 				if (file.name.endsWith(".log")) {
 					try {
-						// Skip already processed files during updates
+						// Skip already processed files
 						if (!clearFirst && (await isFileProcessed(file.name))) {
 							processedFiles++;
 							progressBar.style.width = `${(processedFiles / totalFiles) * 100}%`;
 							continue;
 						}
 
-						const result = await processFile(file);
+						const result = await processFileSimple(file);
 						await markFileProcessed(file.name);
 
 						processedFiles++;
@@ -1099,9 +1358,11 @@
 						fileDiv.textContent = `${file.name}: ${result.count} entries${result.skipped > 0 ? ` (${result.skipped} skipped)` : ""}`;
 						fileListDiv.appendChild(fileDiv);
 
-						// Update status
-						statusDiv.textContent = clearFirst ? `Processed ${processedFiles}/${totalFiles} files, ${totalEntries} entries` : `Updated with ${processedFiles}/${totalFiles} files, added ${totalEntries} entries`;
+						statusDiv.textContent = clearFirst 
+							? `Processed ${processedFiles}/${totalFiles} files, ${totalEntries} entries`
+							: `Updated with ${processedFiles}/${totalFiles} files, added ${totalEntries} entries`;
 						statusDiv.className = "info";
+
 					} catch (e) {
 						console.error(`Error processing file ${file.name}:`, e);
 						const fileDiv = document.createElement("div");
@@ -1124,29 +1385,155 @@
 			serialSelect.disabled = false;
 			updateDbBtn.disabled = false;
 
-			// Update serial list
 			await updateStationInfo();
 			await updateSerialList();
-
-			// Show some data
 			await queryBtn.click();
+		}
+
+		// Simplified file processor
+		async function processFileSimple(file) {
+			return new Promise((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = async (event) => {
+					try {
+						const content = event.target.result;
+						const lines = content.split('\n');
+						
+						if (lines.length < 3) { // Need at least header + 2 lines (first and last)
+							return resolve({ count: 0, skipped: 0 });
+						}
+
+						const headers = lines[0].split(',').map(h => h.trim());
+						let count = 0;
+						let skipped = 0;
+						const batchSize = 1000;
+						let batch = [];
+						const totalLines = lines.length;
+
+						for (let i = 1; i < totalLines; i++) {
+							const line = lines[i].trim();
+							if (!line) continue;
+
+							try {
+								const entry = parseCSVLine(line, headers);
+								
+								// Mark RX types based on line position
+								if (i === 1) entry.rxType = 1; // firstRX
+								else if (i === totalLines - 1) entry.rxType = 2; // lastRX
+								
+								batch.push(entry);
+
+								if (batch.length >= batchSize) {
+									await saveBatch(batch);
+									count += batch.length;
+									batch = [];
+								}
+							} catch (e) {
+								skipped++;
+							}
+						}
+
+						if (batch.length > 0) {
+							await saveBatch(batch);
+							count += batch.length;
+						}
+
+						resolve({ count, skipped });
+					} catch (e) {
+						reject(e);
+					}
+				};
+				reader.onerror = () => reject(new Error(`Error reading file ${file.name}`));
+				reader.readAsText(file);
+			});
+		}
+		
+		function enableQueryControls() {
+			queryBtn.disabled = false;
+			document.getElementById("manualSerialInput").disabled = false;
+			document.getElementById("searchSerialBtn").disabled = false;
+			serialSelect.disabled = false;
+		}
+
+		function disableQueryControls() {
+			queryBtn.disabled = true;
+			document.getElementById("manualSerialInput").disabled = true;
+			document.getElementById("searchSerialBtn").disabled = true;
+			serialSelect.disabled = true;
 		}
 
 		// Initialize the application
 		async function init() {
 			try {
-				await initDB();
+				disableQueryControls(); // Start with controls disabled
+				
+				statusDiv.textContent = "Initializing database...";
+				statusDiv.className = "info";
+				
+				// Initialize the database
+				db = await initDB();
+				dbInitialized = true;
+				
+				// Try to load station info
+				try {
+					const existingInfo = await getStationInfo();
+					if (existingInfo) {
+						stationConfig.lat = existingInfo.lat;
+						stationConfig.lon = existingInfo.lon;
+						stationConfig.alt = existingInfo.alt;
+						stationConfig.callsign = existingInfo.callsign;
+						updateStationInfo();
+					}
+				} catch (e) {
+					console.log("No existing station info or error reading it", e);
+				}
+				
+				// Set up limit input
+				limitInput.value = "10000";
+				limitInput.max = QUERY_LIMIT;
+				
+				// Enable basic controls
 				clearDbBtn.disabled = false;
-				queryBtn.disabled = true;
-				DistAltBtn.disabled = false; // Enable plot button immediately
+				updateDbBtn.disabled = false;
+				DistAltBtn.disabled = false;
 				AzAltBtn.disabled = false;
 				AzElBtn.disabled = false;
-				serialSelect.disabled = false;
-				updateDbBtn.disabled = false;
+				
+				// Check if we have any data
+				try {
+					const count = await getTotalRecordsCount();
+					if (count > 0) {
+						enableQueryControls();
+						statusDiv.textContent = "Ready to query";
+						statusDiv.className = "success";
+						setTimeout(updateSerialList, 100); // Load serials in background
+					} else {
+						// Database exists but is empty - this is normal first-run state
+						enableQueryControls(); // Enable controls even with empty DB
+						statusDiv.textContent = "Database ready - add log files to begin";
+						statusDiv.className = "info";
+					}
+				} catch (e) {
+					console.error("Error checking record count:", e);
+					// If count check fails, still allow operations
+					enableQueryControls();
+					statusDiv.textContent = "Database ready - try updating";
+					statusDiv.className = "info";
+				}
+				
 			} catch (e) {
-				console.error("Initialization error:", e);
+				console.error("Init failed:", e);
+				statusDiv.textContent = "Initialization failed - try updating database";
+				statusDiv.className = "error";
+				disableQueryControls();
+				
+				// Special case: If DB creation failed, show more specific error
+				if (e.message.includes("DB open failed")) {
+					statusDiv.textContent = "Failed to access database - check browser permissions";
+				}
 			}
 		}
+
 		init();
 	</script>
 </body>
