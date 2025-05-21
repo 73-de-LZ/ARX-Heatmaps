@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version 5.10 -->
+<!-- version 5.11 -->
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
@@ -493,81 +493,71 @@
 
 		// Update station info display
 		async function updateStationInfo() {
-			let infoText = "";
-
-			if (stationConfig.callsign) {
-				infoText = `Station: ${stationConfig.callsign} | Location: ${stationConfig.lat.toFixed(4)}, ${stationConfig.lon.toFixed(4)}, ${stationConfig.alt}m`;
-			} else {
-				infoText = "Station: Not configured";
-			}
-
-			// Add counts if database is initialized
+			let infoText = stationConfig.callsign 
+				? `Station: ${stationConfig.callsign} | Location: ${stationConfig.lat.toFixed(4)}, ${stationConfig.lon.toFixed(4)}, ${stationConfig.alt}m`
+				: "Station: Not configured";
+			
 			if (dbInitialized) {
 				try {
-					// Get all counts in parallel
 					const [totalRecords, serialsCount, filesCount] = await Promise.all([
 						getTotalRecordsCount(),
 						getSerialsCount(),
 						getFilesCount(),
 					]);
-
 					infoText += ` | Records: ${totalRecords} | Serials: ${serialsCount} | Files: ${filesCount}`;
 				} catch (e) {
-					console.error("Error getting counts:", e);
+					console.error("Count update error:", e);
 					infoText += " | Counts: Error";
 				}
 			}
-
+			
 			stationInfo.textContent = infoText;
 		}
 
 		// Helper Get total records count
 		async function getTotalRecordsCount() {
 			return new Promise((resolve, reject) => {
+			
 				const transaction = db.transaction([STORE_NAME], "readonly");
 				const store = transaction.objectStore(STORE_NAME);
 				const request = store.count();
-
-				request.onsuccess = () => resolve(request.result);
-				request.onerror = (event) => reject(event.target.error);
+				
+				request.onsuccess = () => {
+					console.log(`Records counted: ${request.result}`);
+					resolve(request.result);
+				};
+				
+				request.onerror = (event) => {
+					console.error("Count failed:", event.target.error);
+					reject(event.target.error);
+				};
 			});
 		}
 
 		// Helper Get unique serials count (updated to be more efficient)
 		async function getSerialsCount() {
 			return new Promise((resolve, reject) => {
-				const transaction = db.transaction([STORE_NAME], "readonly");
-				const store = transaction.objectStore(STORE_NAME);
-				const request = store.openCursor();
+				
+				const tx = db.transaction([STORE_NAME], "readonly");
+				const store = tx.objectStore(STORE_NAME);
+				const serialIndex = store.index('serial'); // Use existing index
 				const uniqueSerials = new Set();
-				let counter = 0;
-
-				request.onsuccess = function (event) {
-					const cursor = event.target.result;
+				
+				// KEY OPTIMIZATION: Use key-only cursor
+				const req = serialIndex.openKeyCursor();
+				
+				req.onsuccess = (e) => {
+					const cursor = e.target.result;
 					if (cursor) {
-						const serial = cursor.value.serial;
-						if (serial !== undefined && serial !== null) {
-							uniqueSerials.add(serial);
-						}
-
-						counter++;
-
-						// Call cursor.continue() immediately to keep transaction alive
-						cursor.continue();
-
-						// Delay after every 5000 rows, but do not block the transaction
-						if (counter % 5000 === 0) {
-							// Schedule a non-blocking delay (no await!)
-							setTimeout(() => {}, 0);
-						}
+						uniqueSerials.add(cursor.key); // Key = serial value (no .value needed)
+						cursor.continue(); // No batching needed (fast with index)
 					} else {
+						console.log('serialCount');
 						resolve(uniqueSerials.size);
 					}
 				};
-
-				request.onerror = (event) => {
-					reject(event.target.error);
-				};
+				
+				req.onerror = (e) => reject(e.target.error);
 			});
 		}
 
@@ -796,7 +786,7 @@
 							opt.textContent = s;
 							serialSelect.appendChild(opt);
 						}
-						statusDiv.textContent = `Loaded ${serials.size} recent serials`;
+						statusDiv.textContent = `Loaded ${serials.size} recent serials from last 30 days`;
 						statusDiv.className = "success";
 						serialSelect.disabled = false;
 					}
@@ -1465,16 +1455,15 @@
 		// Initialize the application
 		async function init() {
 			try {
-				disableQueryControls(); // Start with controls disabled
-				
+				disableQueryControls();
 				statusDiv.textContent = "Initializing database...";
 				statusDiv.className = "info";
 				
-				// Initialize the database
+				// Initialize database (original unchanged)
 				db = await initDB();
 				dbInitialized = true;
-				
-				// Try to load station info
+
+				// Load station info - MODIFIED SECTION
 				try {
 					const existingInfo = await getStationInfo();
 					if (existingInfo) {
@@ -1482,40 +1471,46 @@
 						stationConfig.lon = existingInfo.lon;
 						stationConfig.alt = existingInfo.alt;
 						stationConfig.callsign = existingInfo.callsign;
-						updateStationInfo();
+						
+						// IMMEDIATELY UPDATE THE STATION INFO DISPLAY
+						stationInfo.textContent = `Station: ${stationConfig.callsign} | ` +
+												`Location: ${stationConfig.lat.toFixed(4)}, ` +
+												`${stationConfig.lon.toFixed(4)}, ` +
+												`${stationConfig.alt}m`;
+					} else {
+						stationInfo.textContent = "Station: Not configured";
 					}
 				} catch (e) {
-					console.log("No existing station info or error reading it", e);
+					console.log("Station info error:", e);
+					stationInfo.textContent = "Station: Config error";
 				}
-				
-				// Set up limit input
+
+				// REST OF THE ORIGINAL INIT CODE REMAINS UNCHANGED
 				limitInput.value = "10000";
 				limitInput.max = QUERY_LIMIT;
 				
-				// Enable basic controls
 				clearDbBtn.disabled = false;
 				updateDbBtn.disabled = false;
 				DistAltBtn.disabled = false;
 				AzAltBtn.disabled = false;
 				AzElBtn.disabled = false;
 				
-				// Check if we have any data
 				try {
 					const count = await getTotalRecordsCount();
 					if (count > 0) {
 						enableQueryControls();
 						statusDiv.textContent = "Ready to query";
 						statusDiv.className = "success";
-						setTimeout(updateSerialList, 100); // Load serials in background
+						setTimeout(updateSerialList, 100);
+						updateStationInfo(); // This will update counts later
 					} else {
-						// Database exists but is empty - this is normal first-run state
-						enableQueryControls(); // Enable controls even with empty DB
+						enableQueryControls();
 						statusDiv.textContent = "Database ready - add log files to begin";
 						statusDiv.className = "info";
+						updateStationInfo(); // Ensure counts are shown even if zero
 					}
 				} catch (e) {
-					console.error("Error checking record count:", e);
-					// If count check fails, still allow operations
+					console.error("Count check error:", e);
 					enableQueryControls();
 					statusDiv.textContent = "Database ready - try updating";
 					statusDiv.className = "info";
@@ -1525,14 +1520,11 @@
 				console.error("Init failed:", e);
 				statusDiv.textContent = "Initialization failed - try updating database";
 				statusDiv.className = "error";
+				stationInfo.textContent = "Station: Init failed";
 				disableQueryControls();
-				
-				// Special case: If DB creation failed, show more specific error
-				if (e.message.includes("DB open failed")) {
-					statusDiv.textContent = "Failed to access database - check browser permissions";
-				}
 			}
 		}
+
 
 		init();
 	</script>
